@@ -98,9 +98,36 @@
     }
     .config-field input:focus { outline: none; border-color: #4a90d9; }
 
+    .config-calculated {
+      display: block; padding: 7px 10px; width: 100%;
+      border: 1px solid #e0e0e0; border-radius: 5px;
+      font-size: 0.9rem; font-weight: 600; color: #4a90d9;
+      background: #f0f4fa;
+    }
+
     .config-hint {
       margin-top: 10px; font-size: 0.78rem; color: #999;
     }
+
+    /* ===== TRAY CONFIG ADD/REMOVE ===== */
+    .tray-config-section {
+      margin-bottom: 4px;
+    }
+    .tray-config-header {
+      display: flex; align-items: center; gap: 8px;
+    }
+    .btn-remove-config {
+      background: none; border: 1px solid #ddd; border-radius: 4px;
+      color: #999; cursor: pointer; font-size: 1rem; padding: 0 6px;
+      line-height: 1.4; transition: all 0.15s;
+    }
+    .btn-remove-config:hover { color: #e74c3c; border-color: #e74c3c; }
+    .btn-add-config {
+      margin-top: 8px; padding: 5px 14px; font-size: 0.8rem;
+      background: #e8e8e8; border: 1px solid #ccc; border-radius: 5px;
+      cursor: pointer; font-weight: 500; color: #555;
+    }
+    .btn-add-config:hover { background: #ddd; }
 
     /* ===== FLASH MESSAGES ===== */
     .flash { padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; font-size: 0.9rem; }
@@ -182,7 +209,7 @@
         <h1>VLM Slotting Optimizer</h1>
         <span class="subtitle">
           {{ config.num_towers }}-Tower Vertical Lift Module &mdash;
-          Bin Packing &amp; Golden Zone Optimization
+          Direct Mapping &amp; Golden Zone Optimization
         </span>
       </div>
       {% if rows %}
@@ -213,7 +240,7 @@
           <button type="submit" class="btn btn-primary">Run Slotting</button>
         </div>
         <p style="margin-top: 8px; font-size: 0.8rem; color: #888;">
-          CSV must have columns: SKU, Description, Length_in, Width_in, Height_in, Weight_lbs, Weekly_Picks
+          CSV must have columns: SKU, Description, Length_in, Width_in, Height_in, Weight_lbs, Eaches, Weekly_Picks, Tray_Config, Pick_Priority
         </p>
 
         <!-- CONFIG TOGGLE -->
@@ -223,31 +250,103 @@
 
         <!-- CONFIG PANEL (hidden by default) -->
         <div class="config-panel" id="configPanel">
-          <!--
-            We loop over config_fields (from app.py) grouped by their "group" key.
-            This way, adding a new config option in app.py automatically adds it
-            to the form — no HTML changes needed.
-          -->
+
+          <!-- PRE fields: Machine Layout, Tray Dimensions, Golden Zone -->
           {% set ns = namespace(current_group="") %}
-          {% for field in config_fields %}
+          {% for field in config_fields_pre %}
             {% if field.group != ns.current_group %}
-              {% if ns.current_group != "" %}
-                </div><!-- close previous config-grid -->
-              {% endif %}
+              {% if ns.current_group != "" %}</div>{% endif %}
               <div class="config-group-label">{{ field.group }}</div>
               <div class="config-grid">
               {% set ns.current_group = field.group %}
             {% endif %}
             <div class="config-field">
               <label for="{{ field.key }}">{{ field.label }}</label>
-              <input type="number"
-                     id="{{ field.key }}"
-                     name="{{ field.key }}"
+              {% if field.type == 'str' %}
+              <input type="text" id="{{ field.key }}" name="{{ field.key }}"
+                     value="{{ config[field.key] }}" maxlength="1"
+                     style="text-transform: uppercase; width: 60px;">
+              {% else %}
+              <input type="number" id="{{ field.key }}" name="{{ field.key }}"
+                     value="{{ config[field.key] }}"
+                     step="{{ '1' if field.type == 'int' else '0.1' }}">
+              {% endif %}
+            </div>
+          {% endfor %}
+          {% if config_fields_pre %}</div>{% endif %}
+
+          <!-- DYNAMIC TRAY CONFIGURATIONS (add / remove) -->
+          <div id="trayConfigs">
+            {% for i in range(1, num_tray_configs + 1) %}
+            <div class="tray-config-section" data-config="{{ i }}">
+              <div class="config-group-label tray-config-header">
+                <span class="config-group-label-text">Tray Config {{ i }}</span>
+                <button type="button" class="btn-remove-config" title="Remove this config">&times;</button>
+              </div>
+              <div class="config-grid">
+                <div class="config-field">
+                  <label>Cells per Tray</label>
+                  <input type="number" data-suffix="cells"
+                         name="tray_config_{{ i }}_cells"
+                         id="tray_config_{{ i }}_cells"
+                         value="{{ config['tray_config_%d_cells' % i] }}" step="1">
+                </div>
+                <div class="config-field">
+                  <label>Tray Height (in)</label>
+                  <input type="number" data-suffix="height"
+                         name="tray_config_{{ i }}_height"
+                         id="tray_config_{{ i }}_height"
+                         value="{{ config['tray_config_%d_height' % i] }}" step="0.1">
+                </div>
+                <div class="config-field">
+                  <label>Height Tolerance (%)</label>
+                  <input type="number" data-suffix="height_tol"
+                         name="tray_config_{{ i }}_height_tol"
+                         id="tray_config_{{ i }}_height_tol"
+                         value="{{ config['tray_config_%d_height_tol' % i] }}" step="1">
+                </div>
+                <div class="config-field">
+                  <label>Fill Capacity (%)</label>
+                  <input type="number" data-suffix="fill_pct"
+                         name="tray_config_{{ i }}_fill_pct"
+                         id="tray_config_{{ i }}_fill_pct"
+                         value="{{ config['tray_config_%d_fill_pct' % i] }}" step="1">
+                </div>
+                <div class="config-field">
+                  <label>Cell Volume (in&sup3;)</label>
+                  <span class="config-calculated" data-suffix="cell_vol"
+                        id="tray_config_{{ i }}_cell_vol">--</span>
+                </div>
+                <div class="config-field">
+                  <label>Eff. Volume (in&sup3;)</label>
+                  <span class="config-calculated" data-suffix="eff_vol"
+                        id="tray_config_{{ i }}_eff_vol">--</span>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          <button type="button" class="btn-add-config" id="addConfigBtn">+ Add Tray Config</button>
+          <input type="hidden" name="num_tray_configs" id="numTrayConfigs" value="{{ num_tray_configs }}">
+
+          <!-- POST fields: Spacing, Algorithm -->
+          {% set ns = namespace(current_group="") %}
+          {% for field in config_fields_post %}
+            {% if field.group != ns.current_group %}
+              {% if ns.current_group != "" %}</div>{% endif %}
+              <div class="config-group-label">{{ field.group }}</div>
+              <div class="config-grid">
+              {% set ns.current_group = field.group %}
+            {% endif %}
+            <div class="config-field">
+              <label for="{{ field.key }}">{{ field.label }}</label>
+              <input type="number" id="{{ field.key }}" name="{{ field.key }}"
                      value="{{ config[field.key] }}"
                      step="{{ '1' if field.type == 'int' else '0.1' }}">
             </div>
           {% endfor %}
-          </div><!-- close last config-grid -->
+          {% if config_fields_post %}</div>{% endif %}
+
           <p class="config-hint">
             Changes take effect on the next "Run Slotting". Values are remembered between runs.
           </p>
@@ -268,21 +367,11 @@
       <div class="stats-grid">
         <div class="stat-card">
           <div class="stat-value green">{{ summary.total_placed }}</div>
-          <div class="stat-label">SKUs Placed</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value" style="color: {% if summary.total_unplaced > 0 %}#e74c3c{% else %}#27ae60{% endif %}">
-            {{ summary.total_unplaced }}
-          </div>
-          <div class="stat-label">Unplaced</div>
+          <div class="stat-label">SKUs Placed / {{ summary.total_skus }} Total</div>
         </div>
         <div class="stat-card">
           <div class="stat-value">{{ summary.trays_used }} / {{ summary.trays_total }}</div>
           <div class="stat-label">Trays Used</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value">{{ summary.occupied_cells }} / {{ summary.total_cells }}</div>
-          <div class="stat-label">Cells Used ({{ summary.cell_utilization }}%)</div>
         </div>
         <div class="stat-card">
           <div class="stat-value golden">{{ summary.golden_pct }}%</div>
@@ -292,6 +381,16 @@
           <div class="stat-value">{{ summary.heaviest_tray }} lbs</div>
           <div class="stat-label">Heaviest Tray (max {{ summary.weight_limit }})</div>
         </div>
+        <div class="stat-card">
+          <div class="stat-value">{{ summary.avg_tray_weight }} lbs</div>
+          <div class="stat-label">Avg Tray Weight</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color: {% if summary.warnings|length > 0 %}#e74c3c{% else %}#27ae60{% endif %}">
+            {{ summary.warnings|length }}
+          </div>
+          <div class="stat-label">Warnings</div>
+        </div>
       </div>
 
       <!-- Tray config usage breakdown -->
@@ -300,7 +399,7 @@
         {% for config_name, usage in summary.config_usage.items()|sort %}
         <div class="stat-card">
           <div class="stat-value" style="font-size: 1.2rem;">{{ config_name }}</div>
-          <div class="stat-label">{{ usage.trays }} trays &middot; {{ usage.occupied }}/{{ usage.total_cells }} cells</div>
+          <div class="stat-label">{{ usage.trays }} trays &middot; {{ usage['items'] }} items</div>
         </div>
         {% endfor %}
       </div>
@@ -318,12 +417,23 @@
         {% endfor %}
       </div>
 
-      {% if summary.unplaced_skus %}
-      <div style="margin-top: 16px; padding: 12px; background: #fff3cd; border-radius: 6px;">
-        <h3 style="color: #856404;">Unplaced Items</h3>
+      {% if summary.validation_errors %}
+      <div style="margin-top: 16px; padding: 12px; background: #f8d7da; border-radius: 6px;">
+        <h3 style="color: #721c24;">Validation Errors ({{ summary.validation_errors|length }})</h3>
         <ul style="margin-top: 6px; padding-left: 20px; font-size: 0.85rem;">
-          {% for u in summary.unplaced_skus %}
-            <li>{{ u.sku_id }}: {{ u.description }} ({{ u.dims }} in, {{ u.weight }} lbs, {{ u.eaches }} ea)</li>
+          {% for e in summary.validation_errors %}
+            <li><strong>{{ e.sku_id }}</strong> [{{ e.check }}]: {{ e.message }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      {% if summary.warnings %}
+      <div style="margin-top: 16px; padding: 12px; background: #fff3cd; border-radius: 6px;">
+        <h3 style="color: #856404;">Warnings ({{ summary.warnings|length }})</h3>
+        <ul style="margin-top: 6px; padding-left: 20px; font-size: 0.85rem;">
+          {% for w in summary.warnings %}
+            <li>[{{ w.type }}] {{ w.message }}</li>
           {% endfor %}
         </ul>
       </div>
@@ -342,6 +452,12 @@
             <option value="{{ t.tower }}">Tower {{ t.tower }}</option>
           {% endfor %}
         </select>
+        <select class="filter-select" id="configFilter">
+          <option value="">All Configs</option>
+          {% for config_name in summary.config_usage.keys()|sort %}
+            <option value="{{ config_name }}">{{ config_name }}</option>
+          {% endfor %}
+        </select>
         <select class="filter-select" id="zoneFilter">
           <option value="">All Zones</option>
           <option value="Golden">Golden Zone</option>
@@ -353,24 +469,31 @@
         <table id="slottingTable">
           <thead>
             <tr>
-              <th data-col="0">SKU</th>
-              <th data-col="1">Description</th>
-              <th data-col="2">Tower</th>
-              <th data-col="3">Tray</th>
-              <th data-col="4">Cell</th>
-              <th data-col="5">Tray Config</th>
-              <th data-col="6">Picks/Wk</th>
-              <th data-col="7">Eaches</th>
-              <th data-col="8">Cell Wt (lbs)</th>
-              <th data-col="9">Dimensions (in)</th>
-              <th data-col="10">Zone</th>
+              <th data-col="0">Bin Label</th>
+              <th data-col="1">SKU</th>
+              <th data-col="2">Description</th>
+              <th data-col="3">Pick Priority</th>
+              <th data-col="4">Tower</th>
+              <th data-col="5">Tray</th>
+              <th data-col="6">Cell</th>
+              <th data-col="7">Config</th>
+              <th data-col="8">Picks/Wk</th>
+              <th data-col="9">Eaches</th>
+              <th data-col="10">Cell Wt</th>
+              <th data-col="11">Dims (in)</th>
+              <th data-col="12">SKU Vol</th>
+              <th data-col="13">Total Vol</th>
+              <th data-col="14">Cell Vol</th>
+              <th data-col="15">Zone</th>
             </tr>
           </thead>
           <tbody id="tableBody">
             {% for row in rows %}
-            <tr data-tower="{{ row.Tower }}" data-zone="{{ row.Tray_Zone }}">
+            <tr data-tower="{{ row.Tower }}" data-zone="{{ row.Tray_Zone }}" data-config="{{ row.Tray_Config }}">
+              <td style="font-family: monospace; font-weight: 600;">{{ row.Bin_Label }}</td>
               <td>{{ row.SKU }}</td>
               <td>{{ row.Description }}</td>
+              <td>{{ row.Pick_Priority }}</td>
               <td>{{ row.Tower }}</td>
               <td>{{ row.Tray }}</td>
               <td>{{ row.Cell }}</td>
@@ -381,6 +504,9 @@
               <td>{{ row.Eaches }}</td>
               <td>{{ row.Cell_Weight_lbs }}</td>
               <td>{{ row.Length_in }}&times;{{ row.Width_in }}&times;{{ row.Height_in }}</td>
+              <td>{{ row.SKU_Vol_in3 }}</td>
+              <td>{{ row.Total_Vol_in3 }}</td>
+              <td>{{ row.Cell_Vol_in3 }}</td>
               <td class="{% if row.Tray_Zone == 'Golden' %}zone-golden{% else %}zone-standard{% endif %}">
                 {{ row.Tray_Zone }}
               </td>
@@ -414,28 +540,167 @@
       panel.classList.toggle("open");
     }
 
+    // ===== LIVE VOLUME CALCULATIONS =====
+    // Loops over all tray-config-section elements (dynamic count).
+    function updateVolumes() {
+      const trayWidth    = parseFloat(document.getElementById("tray_width").value) || 0;
+      const trayDepth    = parseFloat(document.getElementById("tray_depth").value) || 0;
+      const dividerWidth = parseFloat(document.getElementById("divider_width").value) || 0;
+
+      document.querySelectorAll(".tray-config-section").forEach(section => {
+        const i       = section.dataset.config;
+        const cells   = parseInt(document.getElementById(`tray_config_${i}_cells`)?.value) || 0;
+        const height  = parseFloat(document.getElementById(`tray_config_${i}_height`)?.value) || 0;
+        const fillPct = parseInt(document.getElementById(`tray_config_${i}_fill_pct`)?.value) || 0;
+
+        let cellVol = 0, effVol = 0;
+        if (cells > 0) {
+          const cellWidth = (trayWidth - (cells - 1) * dividerWidth) / cells;
+          cellVol = cellWidth * trayDepth * height;
+          effVol  = cellVol * fillPct / 100;
+        }
+
+        const cellVolEl = document.getElementById(`tray_config_${i}_cell_vol`);
+        const effVolEl  = document.getElementById(`tray_config_${i}_eff_vol`);
+        if (cellVolEl) cellVolEl.textContent = cellVol > 0 ? cellVol.toFixed(1) : "--";
+        if (effVolEl)  effVolEl.textContent  = effVol > 0  ? effVol.toFixed(1)  : "--";
+      });
+    }
+
+    // Attach volume-update listeners to inputs inside a tray config section
+    function attachVolumeListeners(section) {
+      section.querySelectorAll('input[data-suffix="cells"], input[data-suffix="height"], input[data-suffix="fill_pct"]')
+        .forEach(el => el.addEventListener("input", updateVolumes));
+    }
+
+    // ===== ADD TRAY CONFIG =====
+    document.getElementById("addConfigBtn").addEventListener("click", function() {
+      const container = document.getElementById("trayConfigs");
+      const num = container.querySelectorAll(".tray-config-section").length + 1;
+
+      const section = document.createElement("div");
+      section.className = "tray-config-section";
+      section.dataset.config = num;
+      section.innerHTML = `
+        <div class="config-group-label tray-config-header">
+          <span class="config-group-label-text">Tray Config ${num}</span>
+          <button type="button" class="btn-remove-config" title="Remove this config">&times;</button>
+        </div>
+        <div class="config-grid">
+          <div class="config-field">
+            <label>Cells per Tray</label>
+            <input type="number" data-suffix="cells"
+                   name="tray_config_${num}_cells" id="tray_config_${num}_cells"
+                   value="6" step="1">
+          </div>
+          <div class="config-field">
+            <label>Tray Height (in)</label>
+            <input type="number" data-suffix="height"
+                   name="tray_config_${num}_height" id="tray_config_${num}_height"
+                   value="12.0" step="0.1">
+          </div>
+          <div class="config-field">
+            <label>Height Tolerance (%)</label>
+            <input type="number" data-suffix="height_tol"
+                   name="tray_config_${num}_height_tol" id="tray_config_${num}_height_tol"
+                   value="10" step="1">
+          </div>
+          <div class="config-field">
+            <label>Fill Capacity (%)</label>
+            <input type="number" data-suffix="fill_pct"
+                   name="tray_config_${num}_fill_pct" id="tray_config_${num}_fill_pct"
+                   value="85" step="1">
+          </div>
+          <div class="config-field">
+            <label>Cell Volume (in&sup3;)</label>
+            <span class="config-calculated" data-suffix="cell_vol"
+                  id="tray_config_${num}_cell_vol">--</span>
+          </div>
+          <div class="config-field">
+            <label>Eff. Volume (in&sup3;)</label>
+            <span class="config-calculated" data-suffix="eff_vol"
+                  id="tray_config_${num}_eff_vol">--</span>
+          </div>
+        </div>`;
+
+      container.appendChild(section);
+      document.getElementById("numTrayConfigs").value = num;
+      attachVolumeListeners(section);
+      updateVolumes();
+    });
+
+    // ===== REMOVE TRAY CONFIG (event delegation) =====
+    document.getElementById("trayConfigs").addEventListener("click", function(e) {
+      if (!e.target.classList.contains("btn-remove-config")) return;
+      const sections = document.querySelectorAll(".tray-config-section");
+      if (sections.length <= 1) {
+        alert("Must have at least one tray configuration.");
+        return;
+      }
+      e.target.closest(".tray-config-section").remove();
+      renumberConfigs();
+    });
+
+    // After removing a config, renumber all remaining ones (1, 2, 3, ...)
+    // so form field names stay sequential.
+    function renumberConfigs() {
+      document.querySelectorAll(".tray-config-section").forEach((section, idx) => {
+        const num = idx + 1;
+        section.dataset.config = num;
+        section.querySelector(".config-group-label-text").textContent = `Tray Config ${num}`;
+
+        // Update input names and IDs
+        section.querySelectorAll("input[data-suffix]").forEach(input => {
+          const suffix = input.dataset.suffix;
+          input.name = `tray_config_${num}_${suffix}`;
+          input.id   = `tray_config_${num}_${suffix}`;
+        });
+
+        // Update calculated span IDs
+        section.querySelectorAll(".config-calculated[data-suffix]").forEach(span => {
+          const suffix = span.dataset.suffix;
+          span.id = `tray_config_${num}_${suffix}`;
+        });
+      });
+
+      document.getElementById("numTrayConfigs").value =
+        document.querySelectorAll(".tray-config-section").length;
+      updateVolumes();
+    }
+
+    // ===== INIT: attach listeners to existing sections + global fields =====
+    document.querySelectorAll(".tray-config-section").forEach(attachVolumeListeners);
+    ["tray_width", "tray_depth", "divider_width"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener("input", updateVolumes);
+    });
+    updateVolumes();
+
     {% if rows %}
     // ===== SEARCH & FILTER =====
-    const searchBox   = document.getElementById("searchBox");
-    const towerFilter = document.getElementById("towerFilter");
-    const zoneFilter  = document.getElementById("zoneFilter");
-    const tableBody   = document.getElementById("tableBody");
-    const rowCount    = document.getElementById("rowCount");
-    const allRows     = Array.from(tableBody.querySelectorAll("tr"));
-    const totalCount  = allRows.length;
+    const searchBox    = document.getElementById("searchBox");
+    const towerFilter  = document.getElementById("towerFilter");
+    const configFilter = document.getElementById("configFilter");
+    const zoneFilter   = document.getElementById("zoneFilter");
+    const tableBody    = document.getElementById("tableBody");
+    const rowCount     = document.getElementById("rowCount");
+    const allRows      = Array.from(tableBody.querySelectorAll("tr"));
+    const totalCount   = allRows.length;
 
     function applyFilters() {
-      const query = searchBox.value.toLowerCase();
-      const tower = towerFilter.value;
-      const zone  = zoneFilter.value;
+      const query  = searchBox.value.toLowerCase();
+      const tower  = towerFilter.value;
+      const config = configFilter.value;
+      const zone   = zoneFilter.value;
       let visible = 0;
 
       allRows.forEach(row => {
         const text = row.textContent.toLowerCase();
-        const matchesSearch = !query || text.includes(query);
-        const matchesTower  = !tower || row.dataset.tower === tower;
-        const matchesZone   = !zone  || row.dataset.zone === zone;
-        const show = matchesSearch && matchesTower && matchesZone;
+        const matchesSearch = !query  || text.includes(query);
+        const matchesTower  = !tower  || row.dataset.tower === tower;
+        const matchesConfig = !config || row.dataset.config === config;
+        const matchesZone   = !zone   || row.dataset.zone === zone;
+        const show = matchesSearch && matchesTower && matchesConfig && matchesZone;
         row.style.display = show ? "" : "none";
         if (show) visible++;
       });
@@ -445,6 +710,7 @@
 
     searchBox.addEventListener("input", applyFilters);
     towerFilter.addEventListener("change", applyFilters);
+    configFilter.addEventListener("change", applyFilters);
     zoneFilter.addEventListener("change", applyFilters);
 
     // ===== COLUMN SORTING =====

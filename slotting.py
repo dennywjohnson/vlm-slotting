@@ -1,36 +1,41 @@
 """
-VLM Slotting Optimizer  (Cell-Based Model)
-==========================================
-Assigns SKUs to cells across a multi-tower Vertical Lift Module.
+VLM Slotting Optimizer  (Direct Mapping Model)
+===============================================
+Assigns SKUs to cells using a deterministic Pick Priority → Cell Number
+mapping across a multi-tower Vertical Lift Module.
 
 KEY CONCEPTS:
-  - TRAY CONFIGURATION: Each tray is set up with a fixed number of
-    equal-width cells (e.g. 6, 8, 16, or 30). Think of it as a tray
-    with physical dividers creating compartments.
+  - PICK PRIORITY: Each SKU has a Pick_Priority (1 = fastest mover) within
+    its Tray Configuration. This number IS the Cell Number.
 
-  - 1 SKU PER CELL: Each cell holds exactly one SKU. The "Eaches"
-    field in the data tells us how many individual items of that SKU
-    are stored in the cell. The cell weight = Weight_lbs * Eaches.
+  - CELL NUMBER FORMULA: Cell numbers interleave across towers so that
+    top-priority SKUs are evenly distributed:
+      Cell 1 → Tower 1, Cell 2 → Tower 2, Cell 3 → Tower 3,
+      Cell 4 → Tower 1, Cell 5 → Tower 2, ...
 
-  - TRAY CONFIG SELECTION: When a SKU needs a tray, we pick the
-    config with the SMALLEST cells that still fit the item. This
-    maximizes density — small items go on 30-cell trays, large items
-    go on 6-cell trays.
+  - From a Cell Number, we derive the exact physical location:
+      Tower           = ((cell_number - 1) % num_towers) + 1
+      Position        = ((cell_number - 1) // num_towers) + 1
+      Config Tray #   = ((position - 1) // cells_per_tray) + 1
+      Cell Index      = ((position - 1) % cells_per_tray) + 1
 
-  - Trays start unconfigured. The first SKU placed on a tray
-    determines its configuration (how many cells it has). Once set,
-    a tray's config is locked.
+  - Cell Index 1 = front-left of the tray (closest to operator, leftmost).
+    Numbers increase left-to-right, front-to-back.
 
-ALGORITHM:
-  1. Sort SKUs by weekly picks (highest first)
-  2. For each SKU, find the smallest tray config it fits in
-  3. Look for existing trays of that config with empty cells
-  4. If none, assign that config to an unused tray
-  5. Golden zone priority for high-pick SKUs
-  6. Tower rotation for even distribution
+  - VALIDATION: The code validates that each SKU physically fits its
+    assigned cell (dimensions, height, volume, weight). Placement is
+    driven by the data, validation catches errors.
+
+FLOW:
+  1. Load SKUs (with Tray_Config and Pick_Priority from the data)
+  2. Validate each SKU against its config (dimensions, volume, height)
+  3. Map Pick_Priority → Cell Number → (Tower, Tray, Cell)
+  4. Check tray weight limits
+  5. Output slotting map
 """
 
 import csv
+import math
 import sys
 from dataclasses import dataclass, field
 
@@ -44,10 +49,12 @@ def default_config() -> dict:
     Return the default VLM configuration.
 
     The 4 tray configs represent how many cells (compartments) a tray
-    can be divided into. Fewer cells = wider cells = bigger items.
+    can be divided into. Each config also defines height, tolerance,
+    and fill capacity for volume-based validation.
     """
     return {
         # Machine layout
+        "zone": "V",              # single character zone label for BIN IDs
         "num_towers": 3,
         "trays_per_tower": 50,
 
@@ -62,16 +69,38 @@ def default_config() -> dict:
         "golden_zone_start": 20,
         "golden_zone_end": 35,
 
-        # Tray configurations — number of cells per tray.
-        # These are the 4 available divider layouts.
-        #   6 cells  → ~12.6" wide cells (motors, pumps)
-        #   8 cells  → ~9.3"  wide cells (PLCs, drives)
-        #  16 cells  → ~4.4"  wide cells (filters, valves)
-        #  30 cells  → ~2.1"  wide cells (bearings, fuses)
-        "tray_config_1": 6,
-        "tray_config_2": 8,
-        "tray_config_3": 16,
-        "tray_config_4": 30,
+        # How many tray configurations are defined (keys below)
+        "num_tray_configs": 4,
+
+        # Tray configurations — each config defines a cell layout plus
+        # height clearance and volume fill limits.
+        #   Config 1:  6 cells → ~12.6" wide (motors, pumps)
+        #   Config 2:  8 cells → ~9.3"  wide (PLCs, drives)
+        #   Config 3: 16 cells → ~4.4"  wide (filters, valves)
+        #   Config 4: 30 cells → ~2.1"  wide (bearings, fuses)
+        #
+        # height     = max item height for this tray layout (inches)
+        # height_tol = % an item can exceed the height (e.g. 10 → 10%)
+        # fill_pct   = usable fraction of cell volume (e.g. 85 → 85%)
+        "tray_config_1_cells": 6,
+        "tray_config_1_height": 24.0,
+        "tray_config_1_height_tol": 10,
+        "tray_config_1_fill_pct": 85,
+
+        "tray_config_2_cells": 8,
+        "tray_config_2_height": 18.0,
+        "tray_config_2_height_tol": 10,
+        "tray_config_2_fill_pct": 85,
+
+        "tray_config_3_cells": 16,
+        "tray_config_3_height": 12.0,
+        "tray_config_3_height_tol": 10,
+        "tray_config_3_fill_pct": 85,
+
+        "tray_config_4_cells": 30,
+        "tray_config_4_height": 6.0,
+        "tray_config_4_height_tol": 10,
+        "tray_config_4_fill_pct": 85,
 
         # Spacing
         "divider_width": 0.5,     # inches per divider between cells
@@ -82,22 +111,19 @@ def default_config() -> dict:
     }
 
 
-def get_tray_configs(cfg: dict) -> list[int]:
+def get_tray_configs(cfg: dict) -> dict[int, dict]:
     """
-    Extract the list of tray configurations (cell counts) from config.
-    Returns them sorted MOST cells first → fewest cells last.
-
-    WHY THIS ORDER?
-      More cells = smaller cells = better density. We want the algorithm
-      to try fitting items into the densest tray config first. A small
-      bearing should go on a 30-cell tray, not waste a slot on a 6-cell.
+    Extract the tray configurations as a dict keyed by config number (1-4).
+    Each value is a dict: {cells, height, height_tol, fill_pct}.
     """
-    configs = sorted({
-        cfg["tray_config_1"],
-        cfg["tray_config_2"],
-        cfg["tray_config_3"],
-        cfg["tray_config_4"],
-    }, reverse=True)
+    configs = {}
+    for i in range(1, cfg.get("num_tray_configs", 4) + 1):
+        configs[i] = {
+            "cells": cfg[f"tray_config_{i}_cells"],
+            "height": cfg[f"tray_config_{i}_height"],
+            "height_tol": cfg[f"tray_config_{i}_height_tol"],
+            "fill_pct": cfg[f"tray_config_{i}_fill_pct"],
+        }
     return configs
 
 
@@ -110,8 +136,6 @@ def compute_cell_width(tray_width: float, cell_count: int,
       |  cell  |  cell  |  cell  |  cell  |
               ^^^      ^^^      ^^^
            dividers (N-1 of them)
-
-    usable_per_cell = (tray_width - (N-1) * divider_width) / N
     """
     total_divider_space = (cell_count - 1) * divider_width
     return (tray_width - total_divider_space) / cell_count
@@ -126,109 +150,29 @@ class SKU:
     """One inventory item to be slotted."""
     sku_id: str
     description: str
-    length: float       # inches (item depth dimension)
-    width: float        # inches (item width dimension)
-    height: float       # inches
-    weight: float       # lbs per each
-    eaches: int         # quantity stored in this cell
+    length: float         # inches
+    width: float          # inches
+    height: float         # inches
+    weight: float         # lbs per each
+    eaches: int           # quantity stored in this cell
     weekly_picks: int
+    tray_config: int      # which config (1-4) this SKU is assigned to
+    pick_priority: int    # rank within its config (1 = fastest mover)
 
     @property
     def cell_weight(self) -> float:
         """Total weight this SKU puts on the tray = weight * eaches."""
         return self.weight * self.eaches
 
-
-@dataclass
-class Tray:
-    """
-    One tray in a VLM tower.
-
-    A tray starts unconfigured (cell_count=None). When the first SKU is
-    placed, it gets configured with a cell count and fixed cell width.
-    After that, it has exactly cell_count slots, each holding 0 or 1 SKU.
-    """
-    tower: int
-    tray_num: int
-
-    # Config values (from VLM config, set at creation)
-    tray_width: float = 78.0
-    tray_depth: float = 24.0
-    max_weight: float = 750.0
-    golden_start: int = 20
-    golden_end: int = 35
-    divider_width: float = 0.5
-    item_clearance: float = 0.25
-
-    # Tray configuration (set when first SKU is placed)
-    cell_count: int | None = None      # None = unconfigured
-    cell_width: float = 0.0            # usable width per cell
-
-    # State — cells is a list of (SKU | None), length = cell_count
-    cells: list = field(default_factory=list)
-    used_weight: float = 0.0
+    @property
+    def sku_volume(self) -> float:
+        """Cubic volume of a single each (length x width x height)."""
+        return self.length * self.width * self.height
 
     @property
-    def is_golden(self) -> bool:
-        return self.golden_start <= self.tray_num <= self.golden_end
-
-    @property
-    def is_configured(self) -> bool:
-        return self.cell_count is not None
-
-    @property
-    def empty_cells(self) -> int:
-        """How many cells are still available."""
-        if not self.is_configured:
-            return 0
-        return sum(1 for c in self.cells if c is None)
-
-    @property
-    def remaining_weight(self) -> float:
-        return self.max_weight - self.used_weight
-
-    def configure(self, cell_count: int):
-        """
-        Lock this tray into a specific cell layout.
-        Called once when the first SKU is assigned to this tray.
-        """
-        self.cell_count = cell_count
-        self.cell_width = compute_cell_width(
-            self.tray_width, cell_count, self.divider_width
-        )
-        self.cells = [None] * cell_count
-
-    def can_fit_sku(self, sku: SKU) -> bool:
-        """Check if a SKU fits in an empty cell on this tray."""
-        if not self.is_configured or self.empty_cells == 0:
-            return False
-        if sku.cell_weight > self.remaining_weight:
-            return False
-        return self._item_fits_cell(sku)
-
-    def _item_fits_cell(self, sku: SKU) -> bool:
-        """Check if the item physically fits in a cell (with clearance)."""
-        cw = self.cell_width - 2 * self.item_clearance   # usable space
-        cd = self.tray_depth - 2 * self.item_clearance
-
-        # Try normal orientation: width in cell width, length in cell depth
-        if sku.width <= cw and sku.length <= cd:
-            return True
-        # Try rotated: length in cell width, width in cell depth
-        if sku.length <= cw and sku.width <= cd:
-            return True
-        return False
-
-    def place(self, sku: SKU) -> int:
-        """
-        Place a SKU in the first empty cell. Returns the cell index (1-based).
-        """
-        for i, cell in enumerate(self.cells):
-            if cell is None:
-                self.cells[i] = sku
-                self.used_weight += sku.cell_weight
-                return i + 1  # 1-based for user-friendly display
-        raise ValueError("No empty cell available")
+    def total_volume(self) -> float:
+        """Cubic volume of all eaches (sku_volume x eaches)."""
+        return self.sku_volume * self.eaches
 
 
 # =========================================================================
@@ -250,312 +194,431 @@ def load_skus(csv_path: str) -> list[SKU]:
                 weight=float(row["Weight_lbs"]),
                 eaches=int(row["Eaches"]),
                 weekly_picks=int(row["Weekly_Picks"]),
+                tray_config=int(row["Tray_Config"]),
+                pick_priority=int(row["Pick_Priority"]),
             ))
     return skus
 
 
 # =========================================================================
-# SLOTTING ALGORITHM
+# PRE-VALIDATION
 # =========================================================================
 
-def create_vlm(cfg: dict) -> list[Tray]:
-    """Create all trays (unconfigured) across all towers."""
-    trays = []
-    for tower in range(1, cfg["num_towers"] + 1):
-        for tray_num in range(1, cfg["trays_per_tower"] + 1):
-            trays.append(Tray(
-                tower=tower,
-                tray_num=tray_num,
-                tray_width=cfg["tray_width"],
-                tray_depth=cfg["tray_depth"],
-                max_weight=cfg["tray_max_weight"],
-                golden_start=cfg["golden_zone_start"],
-                golden_end=cfg["golden_zone_end"],
-                divider_width=cfg["divider_width"],
-                item_clearance=cfg["item_clearance"],
-            ))
-    return trays
-
-
-def find_compatible_configs(sku: SKU, tray_configs: list[int],
-                            cfg: dict) -> list[int]:
+def validate_skus(skus: list[SKU], cfg: dict) -> list[dict]:
     """
-    Return which tray configs (cell counts) can physically hold this SKU.
+    Validate every SKU against its assigned tray configuration.
 
-    We check each config's cell width against the item dimensions.
-    Returns a list sorted from smallest cells to largest (prefer tight fit).
+    Checks:
+      1. Dimensions — single item fits cell width x tray depth (with rotation)
+      2. Height — single item fits tray height + tolerance
+      3. Volume — total SKU volume (all eaches) fits effective cell volume
+      4. Pick Priority — no duplicates within a config
 
-    WHY SMALLEST FIRST?
-      If a small bearing fits in a 30-cell tray, we don't want it
-      wasting a cell on a 6-cell tray. Small cells for small items,
-      big cells for big items.
+    Returns a list of error dicts: {sku_id, check, message}
+    An empty list means all SKUs passed validation.
     """
-    compatible = []
+    errors = []
+    tray_configs = get_tray_configs(cfg)
     clearance = cfg["item_clearance"]
 
-    for cell_count in tray_configs:
+    # Check for duplicate pick priorities within each config
+    priority_map: dict[int, dict[int, list[str]]] = {}
+    for sku in skus:
+        priority_map.setdefault(sku.tray_config, {})
+        priority_map[sku.tray_config].setdefault(sku.pick_priority, [])
+        priority_map[sku.tray_config][sku.pick_priority].append(sku.sku_id)
+
+    for config_num, priorities in priority_map.items():
+        for priority, sku_ids in priorities.items():
+            if len(sku_ids) > 1:
+                for sid in sku_ids:
+                    errors.append({
+                        "sku_id": sid,
+                        "check": "duplicate_priority",
+                        "message": (f"Pick Priority {priority} is used by "
+                                    f"{len(sku_ids)} SKUs in Config {config_num}: "
+                                    f"{', '.join(sku_ids)}"),
+                    })
+
+    for sku in skus:
+        tc = tray_configs.get(sku.tray_config)
+        if tc is None:
+            errors.append({
+                "sku_id": sku.sku_id,
+                "check": "invalid_config",
+                "message": f"Tray_Config {sku.tray_config} is not defined (must be 1-4)",
+            })
+            continue
+
+        cell_count = tc["cells"]
         cell_w = compute_cell_width(
             cfg["tray_width"], cell_count, cfg["divider_width"]
         )
         usable_w = cell_w - 2 * clearance
         usable_d = cfg["tray_depth"] - 2 * clearance
 
-        # Normal orientation or rotated
+        # 1. Dimensional check (allow rotation)
         fits_normal = sku.width <= usable_w and sku.length <= usable_d
         fits_rotated = sku.length <= usable_w and sku.width <= usable_d
+        if not (fits_normal or fits_rotated):
+            errors.append({
+                "sku_id": sku.sku_id,
+                "check": "dimensions",
+                "message": (f"Item {sku.width}\"W x {sku.length}\"L doesn't fit "
+                            f"cell {usable_w:.1f}\"W x {usable_d:.1f}\"D "
+                            f"(Config {sku.tray_config}, {cell_count}-cell)"),
+            })
 
-        if fits_normal or fits_rotated:
-            compatible.append(cell_count)
+        # 2. Height check
+        if tc["height"] > 0:
+            max_h = tc["height"] * (1 + tc["height_tol"] / 100.0)
+            if sku.height > max_h:
+                errors.append({
+                    "sku_id": sku.sku_id,
+                    "check": "height",
+                    "message": (f"Item height {sku.height}\" exceeds "
+                                f"tray height {tc['height']}\" + "
+                                f"{tc['height_tol']}% tolerance = {max_h:.1f}\" "
+                                f"(Config {sku.tray_config})"),
+                })
 
-    # Sorted most-cells-first since tray_configs is sorted descending
-    return compatible
+        # 3. Volume check
+        cell_vol = cell_w * cfg["tray_depth"] * tc["height"]
+        eff_vol = cell_vol * tc["fill_pct"] / 100.0
+        if eff_vol > 0 and sku.total_volume > eff_vol:
+            errors.append({
+                "sku_id": sku.sku_id,
+                "check": "volume",
+                "message": (f"Total SKU volume {sku.total_volume:.1f} cu in "
+                            f"({sku.eaches} ea x {sku.sku_volume:.1f}) exceeds "
+                            f"effective cell volume {eff_vol:.1f} cu in "
+                            f"({tc['fill_pct']}% of {cell_vol:.1f}) "
+                            f"(Config {sku.tray_config})"),
+            })
+
+    return errors
 
 
-def slot_skus(skus: list[SKU], cfg: dict) -> tuple[list[Tray], list[SKU]]:
+# =========================================================================
+# CELL NUMBER MAPPING
+# =========================================================================
+
+def config_letter(config_num: int) -> str:
+    """Convert config number to letter: 1=A, 2=B, ... 26=Z."""
+    if 1 <= config_num <= 26:
+        return chr(64 + config_num)
+    return "?"
+
+
+def build_bin_label(zone: str, tower: int, physical_tray: int,
+                    config_num: int, cell_index: int) -> str:
     """
-    Main slotting algorithm. Returns (trays, unplaced_skus).
+    Build an 8-character BIN LABEL for a cell.
 
-    STRATEGY:
-      1. Sort SKUs by weekly_picks descending
-      2. For each SKU, find the smallest tray config it fits in
-      3. Among trays with that config, find one with empty cells + weight
-      4. If no existing tray works, configure an unused tray
-      5. Golden zone priority for high-pick items
-      6. Tower rotation for balance
+    Format: Zone(1) + Tower(1) + Tray(3) + ConfigLetter(1) + Cell(2)
+    Example: V1002B01 = Zone V, Tower 1, Tray 002, Config 2, Cell 01
     """
-    trays = create_vlm(cfg)
+    return f"{zone}{tower}{physical_tray:03d}{config_letter(config_num)}{cell_index:02d}"
+
+
+def compute_cell_location(pick_priority: int, num_towers: int,
+                          cells_per_tray: int) -> dict:
+    """
+    Map a Pick Priority to a physical cell location.
+
+    The cell number interleaves across towers:
+      Cell 1 → Tower 1, Cell 2 → Tower 2, Cell 3 → Tower 3,
+      Cell 4 → Tower 1 (next position), ...
+
+    Returns dict with: cell_number, tower, config_tray, cell_index
+    """
+    cell_number = pick_priority
+    tower = ((cell_number - 1) % num_towers) + 1
+    position_in_tower = ((cell_number - 1) // num_towers) + 1
+    config_tray = ((position_in_tower - 1) // cells_per_tray) + 1
+    cell_index = ((position_in_tower - 1) % cells_per_tray) + 1
+    return {
+        "cell_number": cell_number,
+        "tower": tower,
+        "config_tray": config_tray,
+        "cell_index": cell_index,
+    }
+
+
+def assign_physical_trays(skus: list[SKU], cfg: dict) -> dict:
+    """
+    Determine which physical tray positions each config occupies per tower.
+
+    Strategy: configs with the highest total pick volume get golden zone
+    tray positions. Within each tower, trays are assigned starting from
+    the golden zone center and spiraling outward.
+
+    Returns: {(tower, config_num, config_tray): physical_tray_num}
+    """
     tray_configs = get_tray_configs(cfg)
     num_towers = cfg["num_towers"]
-    high_pick = cfg["high_pick_threshold"]
-    golden_mid = (cfg["golden_zone_start"] + cfg["golden_zone_end"]) / 2
+    golden_start = cfg["golden_zone_start"]
+    golden_end = cfg["golden_zone_end"]
+    golden_mid = (golden_start + golden_end) / 2
 
-    sorted_skus = sorted(skus, key=lambda s: (-s.weekly_picks, -s.cell_weight))
+    # Count trays needed per config per tower
+    config_trays_needed: dict[int, int] = {}  # config_num → max config_tray
+    for sku in skus:
+        tc = tray_configs[sku.tray_config]
+        loc = compute_cell_location(
+            sku.pick_priority, num_towers, tc["cells"]
+        )
+        key = sku.tray_config
+        config_trays_needed[key] = max(
+            config_trays_needed.get(key, 0), loc["config_tray"]
+        )
 
-    # Group trays by tower
-    trays_by_tower: dict[int, list[Tray]] = {}
-    for t in trays:
-        trays_by_tower.setdefault(t.tower, []).append(t)
+    # Calculate total picks per config (for golden zone priority)
+    config_picks: dict[int, int] = {}
+    for sku in skus:
+        config_picks[sku.tray_config] = (
+            config_picks.get(sku.tray_config, 0) + sku.weekly_picks
+        )
 
-    unplaced = []
+    # Sort configs by total picks descending (highest gets golden zone)
+    sorted_configs = sorted(
+        config_trays_needed.keys(),
+        key=lambda c: config_picks.get(c, 0),
+        reverse=True,
+    )
 
-    for idx, sku in enumerate(sorted_skus):
-        # Which tray configs can hold this item?
-        compatible = find_compatible_configs(sku, tray_configs, cfg)
-        if not compatible:
-            unplaced.append(sku)
+    # Generate tray positions spiraling out from golden zone center
+    all_positions = list(range(1, cfg["trays_per_tower"] + 1))
+    all_positions.sort(key=lambda p: abs(p - golden_mid))
+
+    # Assign physical positions per tower
+    tray_map = {}  # (tower, config_num, config_tray) → physical_tray
+    for tower in range(1, num_towers + 1):
+        pos_idx = 0
+        for config_num in sorted_configs:
+            trays_needed = config_trays_needed[config_num]
+            for ct in range(1, trays_needed + 1):
+                if pos_idx < len(all_positions):
+                    tray_map[(tower, config_num, ct)] = all_positions[pos_idx]
+                    pos_idx += 1
+
+    return tray_map
+
+
+# =========================================================================
+# SLOTTING
+# =========================================================================
+
+def slot_skus(skus: list[SKU], cfg: dict) -> tuple[list[dict], list[dict]]:
+    """
+    Main slotting: map each SKU's Pick Priority to a cell location.
+
+    Returns (placed_rows, warnings).
+    Warnings include tray weight overages.
+    """
+    tray_configs = get_tray_configs(cfg)
+    num_towers = cfg["num_towers"]
+    tray_map = assign_physical_trays(skus, cfg)
+    warnings = []
+
+    rows = []
+    # Track tray weights: (tower, physical_tray) → total weight
+    tray_weights: dict[tuple[int, int], float] = {}
+
+    for sku in skus:
+        tc = tray_configs[sku.tray_config]
+        loc = compute_cell_location(
+            sku.pick_priority, num_towers, tc["cells"]
+        )
+
+        physical_tray = tray_map.get(
+            (loc["tower"], sku.tray_config, loc["config_tray"])
+        )
+        if physical_tray is None:
+            warnings.append({
+                "sku_id": sku.sku_id,
+                "type": "no_tray",
+                "message": f"No physical tray available for Config {sku.tray_config} "
+                           f"Tray {loc['config_tray']} in Tower {loc['tower']}",
+            })
             continue
 
-        # Tower rotation for balance
-        tower_order = [
-            ((idx + t) % num_towers) + 1
-            for t in range(num_towers)
-        ]
+        # Track tray weight
+        tray_key = (loc["tower"], physical_tray)
+        tray_weights[tray_key] = tray_weights.get(tray_key, 0) + sku.cell_weight
 
-        placed = False
+        # Determine zone
+        golden_start = cfg["golden_zone_start"]
+        golden_end = cfg["golden_zone_end"]
+        zone = "Golden" if golden_start <= physical_tray <= golden_end else "Standard"
 
-        # Try each compatible config (smallest cells first)
-        for target_config in compatible:
-            if placed:
-                break
+        # Cell volume calculations
+        cell_w = compute_cell_width(
+            cfg["tray_width"], tc["cells"], cfg["divider_width"]
+        )
+        cell_vol = cell_w * cfg["tray_depth"] * tc["height"]
+        eff_vol = cell_vol * tc["fill_pct"] / 100.0
 
-            # Build priority list: golden trays first for high-pick items
-            golden_trays = []
-            other_trays = []
-            for tower_num in tower_order:
-                for t in trays_by_tower[tower_num]:
-                    if t.is_golden:
-                        golden_trays.append(t)
-                    else:
-                        other_trays.append(t)
+        # Build BIN LABEL: Zone + Tower + Tray(3) + Config Letter + Cell(2)
+        bin_label = build_bin_label(
+            cfg["zone"], loc["tower"], physical_tray,
+            sku.tray_config, loc["cell_index"],
+        )
 
-            # Sort non-golden by proximity to golden zone
-            other_trays.sort(key=lambda t: abs(t.tray_num - golden_mid))
+        rows.append({
+            "Bin_Label": bin_label,
+            "SKU": sku.sku_id,
+            "Description": sku.description,
+            "Tower": loc["tower"],
+            "Tray": physical_tray,
+            "Cell": loc["cell_index"],
+            "Tray_Config": f"{tc['cells']}-cell",
+            "Config_Tray": loc["config_tray"],
+            "Pick_Priority": sku.pick_priority,
+            "Weekly_Picks": sku.weekly_picks,
+            "Eaches": sku.eaches,
+            "Weight_Each_lbs": sku.weight,
+            "Cell_Weight_lbs": round(sku.cell_weight, 2),
+            "Length_in": sku.length,
+            "Width_in": sku.width,
+            "Height_in": sku.height,
+            "SKU_Vol_in3": round(sku.sku_volume, 1),
+            "Total_Vol_in3": round(sku.total_volume, 1),
+            "Cell_Vol_in3": round(eff_vol, 1),
+            "Tray_Zone": zone,
+        })
 
-            if sku.weekly_picks >= high_pick:
-                priority = golden_trays + other_trays
-            else:
-                priority = other_trays + golden_trays
+    # Check tray weight limits
+    for (tower, tray_num), total_wt in tray_weights.items():
+        if total_wt > cfg["tray_max_weight"]:
+            warnings.append({
+                "sku_id": "N/A",
+                "type": "weight",
+                "message": (f"Tower {tower} Tray {tray_num}: "
+                            f"{total_wt:.1f} lbs exceeds limit "
+                            f"of {cfg['tray_max_weight']} lbs"),
+            })
 
-            # PASS 1: Find an existing tray with this config that has room
-            for tray in priority:
-                if (tray.is_configured
-                        and tray.cell_count == target_config
-                        and tray.can_fit_sku(sku)):
-                    tray.place(sku)
-                    placed = True
-                    break
-
-            if placed:
-                break
-
-            # PASS 2: Configure an unused tray with this config
-            for tray in priority:
-                if not tray.is_configured:
-                    tray.configure(target_config)
-                    if tray.can_fit_sku(sku):
-                        tray.place(sku)
-                        placed = True
-                        break
-
-        if not placed:
-            unplaced.append(sku)
-
-    return trays, unplaced
+    rows.sort(key=lambda r: (r["Tower"], r["Tray"], r["Cell"]))
+    return rows, warnings
 
 
 # =========================================================================
 # OUTPUT
 # =========================================================================
 
-def write_slotting_map(trays: list[Tray], output_path: str):
+def write_slotting_map(rows: list[dict], output_path: str):
     """Write the slotting results to a CSV file."""
+    if not rows:
+        return
+
     fieldnames = [
-        "SKU", "Description", "Tower", "Tray", "Cell",
-        "Tray_Config", "Weekly_Picks", "Eaches",
+        "Bin_Label", "SKU", "Description", "Tower", "Tray", "Cell",
+        "Tray_Config", "Config_Tray",
+        "Pick_Priority", "Weekly_Picks", "Eaches",
         "Weight_Each_lbs", "Cell_Weight_lbs",
         "Length_in", "Width_in", "Height_in",
+        "SKU_Vol_in3", "Total_Vol_in3", "Cell_Vol_in3",
         "Tray_Zone",
     ]
-
-    rows = []
-    for tray in trays:
-        if not tray.is_configured:
-            continue
-        for cell_idx, sku in enumerate(tray.cells):
-            if sku is None:
-                continue
-            rows.append({
-                "SKU": sku.sku_id,
-                "Description": sku.description,
-                "Tower": tray.tower,
-                "Tray": tray.tray_num,
-                "Cell": cell_idx + 1,
-                "Tray_Config": f"{tray.cell_count}-cell",
-                "Weekly_Picks": sku.weekly_picks,
-                "Eaches": sku.eaches,
-                "Weight_Each_lbs": sku.weight,
-                "Cell_Weight_lbs": round(sku.cell_weight, 2),
-                "Length_in": sku.length,
-                "Width_in": sku.width,
-                "Height_in": sku.height,
-                "Tray_Zone": "Golden" if tray.is_golden else "Standard",
-            })
-
-    rows.sort(key=lambda r: (r["Tower"], r["Tray"], r["Cell"]))
 
     with open(output_path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
 
-    return rows
 
-
-def build_summary(trays: list[Tray], unplaced: list[SKU],
-                  rows: list[dict], cfg: dict) -> dict:
+def build_summary(rows: list[dict], warnings: list[dict],
+                  skus: list[SKU], cfg: dict) -> dict:
     """Build a structured summary dict for the web app."""
-    used_trays = [t for t in trays if t.is_configured]
-    total_placed = sum(
-        sum(1 for c in t.cells if c is not None) for t in used_trays
-    )
-    total_cells = sum(t.cell_count for t in used_trays)
-    occupied_cells = sum(
-        sum(1 for c in t.cells if c is not None) for t in used_trays
-    )
+    num_towers = cfg["num_towers"]
+    total_placed = len(rows)
 
     # Per-tower stats
     towers = []
-    for tower_num in range(1, cfg["num_towers"] + 1):
-        tower_trays = [t for t in used_trays if t.tower == tower_num]
+    for tower_num in range(1, num_towers + 1):
+        tower_rows = [r for r in rows if r["Tower"] == tower_num]
+        trays_used = len(set(r["Tray"] for r in tower_rows))
         towers.append({
             "tower": tower_num,
-            "trays_used": len(tower_trays),
-            "items": sum(
-                sum(1 for c in t.cells if c is not None) for t in tower_trays
-            ),
+            "trays_used": trays_used,
+            "items": len(tower_rows),
             "golden_items": sum(
-                sum(1 for c in t.cells if c is not None)
-                for t in tower_trays if t.is_golden
+                1 for r in tower_rows if r["Tray_Zone"] == "Golden"
             ),
-            "weight": round(sum(t.used_weight for t in tower_trays), 1),
+            "weight": round(
+                sum(r["Cell_Weight_lbs"] for r in tower_rows), 1
+            ),
         })
 
-    # Golden zone stats
+    # Overall stats
+    all_trays = set((r["Tower"], r["Tray"]) for r in rows)
     golden_rows = [r for r in rows if r["Tray_Zone"] == "Golden"]
     golden_picks = sum(r["Weekly_Picks"] for r in golden_rows)
     total_picks = sum(r["Weekly_Picks"] for r in rows)
 
-    # Tray config usage breakdown
+    # Config usage
     config_usage = {}
-    for t in used_trays:
-        key = f"{t.cell_count}-cell"
+    for r in rows:
+        key = r["Tray_Config"]
         if key not in config_usage:
-            config_usage[key] = {"trays": 0, "occupied": 0, "total_cells": 0}
-        config_usage[key]["trays"] += 1
-        config_usage[key]["total_cells"] += t.cell_count
-        config_usage[key]["occupied"] += sum(1 for c in t.cells if c is not None)
+            config_usage[key] = {"trays": set(), "items": 0}
+        config_usage[key]["trays"].add((r["Tower"], r["Tray"]))
+        config_usage[key]["items"] += 1
+    # Convert sets to counts
+    for key in config_usage:
+        config_usage[key] = {
+            "trays": len(config_usage[key]["trays"]),
+            "items": config_usage[key]["items"],
+        }
 
-    summary = {
+    # Tray weight stats
+    tray_weights: dict[tuple, float] = {}
+    for r in rows:
+        tk = (r["Tower"], r["Tray"])
+        tray_weights[tk] = tray_weights.get(tk, 0) + r["Cell_Weight_lbs"]
+
+    heaviest = max(tray_weights.values()) if tray_weights else 0
+    avg_wt = (
+        sum(tray_weights.values()) / len(tray_weights)
+        if tray_weights else 0
+    )
+
+    return {
         "total_placed": total_placed,
-        "total_unplaced": len(unplaced),
-        "trays_used": len(used_trays),
-        "trays_total": len(trays),
-        "total_cells": total_cells,
-        "occupied_cells": occupied_cells,
-        "cell_utilization": round(occupied_cells / total_cells * 100, 1) if total_cells else 0,
+        "total_skus": len(skus),
+        "trays_used": len(all_trays),
+        "trays_total": num_towers * cfg["trays_per_tower"],
         "towers": towers,
         "golden_picks": golden_picks,
         "total_picks": total_picks,
-        "golden_pct": round(golden_picks / total_picks * 100, 1) if total_picks else 0,
-        "avg_weight_util": 0.0,
-        "heaviest_tray": 0.0,
+        "golden_pct": round(
+            golden_picks / total_picks * 100, 1
+        ) if total_picks else 0,
+        "heaviest_tray": round(heaviest, 1),
+        "avg_tray_weight": round(avg_wt, 1),
         "weight_limit": cfg["tray_max_weight"],
         "config_usage": config_usage,
-        "unplaced_skus": [
-            {
-                "sku_id": s.sku_id,
-                "description": s.description,
-                "dims": f"{s.length}x{s.width}x{s.height}",
-                "weight": s.weight,
-                "eaches": s.eaches,
-            }
-            for s in unplaced
-        ],
+        "warnings": warnings,
     }
 
-    if used_trays:
-        weight_pcts = [t.used_weight / cfg["tray_max_weight"] * 100
-                       for t in used_trays]
-        summary["avg_weight_util"] = round(
-            sum(weight_pcts) / len(weight_pcts), 1
-        )
-        summary["heaviest_tray"] = round(
-            max(t.used_weight for t in used_trays), 1
-        )
 
-    return summary
-
-
-def print_summary(trays: list[Tray], unplaced: list[SKU],
-                  rows: list[dict], cfg: dict):
+def print_summary(rows: list[dict], warnings: list[dict],
+                  skus: list[SKU], cfg: dict):
     """Print a human-readable summary to the console."""
-    s = build_summary(trays, unplaced, rows, cfg)
+    s = build_summary(rows, warnings, skus, cfg)
 
     print("=" * 60)
     print("  VLM SLOTTING SUMMARY")
     print("=" * 60)
-    print(f"  SKUs placed:    {s['total_placed']}")
-    print(f"  SKUs unplaced:  {s['total_unplaced']}")
+    print(f"  SKUs placed:    {s['total_placed']} / {s['total_skus']}")
     print(f"  Trays used:     {s['trays_used']} / {s['trays_total']}")
-    print(f"  Cells:          {s['occupied_cells']} / {s['total_cells']}"
-          f" ({s['cell_utilization']}% utilized)")
     print()
 
-    # Tray config breakdown
     print("  Tray configurations:")
     for config_name, usage in sorted(s["config_usage"].items()):
-        print(f"    {config_name}: {usage['trays']} trays,"
-              f" {usage['occupied']}/{usage['total_cells']} cells used")
+        print(f"    {config_name}: {usage['trays']} trays, "
+              f"{usage['items']} items")
     print()
 
     for t in s["towers"]:
@@ -570,17 +633,15 @@ def print_summary(trays: list[Tray], unplaced: list[SKU],
         print(f"  Golden zone pick coverage: {s['golden_picks']}/{s['total_picks']}"
               f" weekly picks ({s['golden_pct']}%)")
     print()
-    print(f"  Avg tray weight utilization: {s['avg_weight_util']}%")
-    print(f"  Heaviest tray: {s['heaviest_tray']} lbs"
+    print(f"  Avg tray weight:  {s['avg_tray_weight']} lbs")
+    print(f"  Heaviest tray:    {s['heaviest_tray']} lbs"
           f" (limit: {s['weight_limit']} lbs)")
-    print()
 
-    if s["unplaced_skus"]:
-        print("  UNPLACED ITEMS:")
-        for u in s["unplaced_skus"]:
-            print(f"    {u['sku_id']}: {u['description']}"
-                  f" ({u['dims']} in, {u['weight']} lbs,"
-                  f" {u['eaches']} eaches)")
+    if warnings:
+        print(f"\n  WARNINGS ({len(warnings)}):")
+        for w in warnings:
+            print(f"    [{w['type']}] {w['message']}")
+
     print("=" * 60)
 
 
@@ -591,7 +652,7 @@ def print_summary(trays: list[Tray], unplaced: list[SKU],
 def run_slotting(input_csv: str, output_csv: str,
                  cfg: dict | None = None) -> tuple[list[dict], dict]:
     """
-    Full slotting pipeline: load → slot → write → summarize.
+    Full slotting pipeline: load → validate → slot → write → summarize.
     Returns (slotting_rows, summary_dict).
     """
     if cfg is None:
@@ -600,17 +661,37 @@ def run_slotting(input_csv: str, output_csv: str,
     skus = load_skus(input_csv)
     print(f"Loaded {len(skus)} SKUs from {input_csv}")
 
-    # Show cell widths for each config
-    for cc in get_tray_configs(cfg):
-        cw = compute_cell_width(cfg["tray_width"], cc, cfg["divider_width"])
-        print(f"  {cc}-cell tray: {cw:.1f}\" per cell")
+    # Show config details
+    tray_configs = get_tray_configs(cfg)
+    for config_num in sorted(tray_configs):
+        tc = tray_configs[config_num]
+        cw = compute_cell_width(
+            cfg["tray_width"], tc["cells"], cfg["divider_width"]
+        )
+        cell_vol = cw * cfg["tray_depth"] * tc["height"]
+        eff_vol = cell_vol * tc["fill_pct"] / 100.0
+        max_h = tc["height"] * (1 + tc["height_tol"] / 100.0)
+        print(f"  Config {config_num} ({tc['cells']}-cell): "
+              f"{cw:.1f}\"W x {cfg['tray_depth']}\"D x {tc['height']}\"H "
+              f"(max {max_h:.1f}\"), "
+              f"vol {cell_vol:.0f} -> {eff_vol:.0f} cu in ({tc['fill_pct']}%)")
 
-    trays, unplaced = slot_skus(skus, cfg)
-    rows = write_slotting_map(trays, output_csv)
+    # Pre-validate
+    errors = validate_skus(skus, cfg)
+    if errors:
+        print(f"\n  VALIDATION ERRORS ({len(errors)}):")
+        for e in errors:
+            print(f"    {e['sku_id']}: [{e['check']}] {e['message']}")
+        print()
+
+    # Slot
+    rows, warnings = slot_skus(skus, cfg)
+    write_slotting_map(rows, output_csv)
     print(f"Slotting map written to {output_csv}")
 
-    summary = build_summary(trays, unplaced, rows, cfg)
-    print_summary(trays, unplaced, rows, cfg)
+    summary = build_summary(rows, warnings, skus, cfg)
+    summary["validation_errors"] = errors
+    print_summary(rows, warnings, skus, cfg)
     return rows, summary
 
 
