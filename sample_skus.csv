@@ -1,0 +1,501 @@
+SKU,Description,Length_in,Width_in,Height_in,Weight_lbs,Eaches,Weekly_Picks
+SKU-0285,Pipe Fitting Kit,6.0,5.0,3.0,2.76,7,8
+SKU-0121,Lip Seal,2.1,2.7,1.2,0.83,178,2
+SKU-0432,Gear Pump,17.7,7.3,7.3,60.53,5,1
+SKU-0203,Contactor Coil,1.6,3.2,1.1,1.03,28,0
+SKU-0049,O-Ring Kit,0.6,1.0,1.0,1.3,91,2
+SKU-0260,Elbow Fitting 1in,5.9,4.6,4.2,7.53,8,0
+SKU-0238,Contactor Coil,1.5,1.3,1.3,0.73,28,6
+SKU-0205,Pressure Transducer,1.7,2.4,2.6,0.52,48,2
+SKU-0218,Temp Sensor,2.4,1.7,1.9,2.49,23,3
+SKU-0004,Retaining Ring Kit,1.6,1.2,0.8,1.16,46,0
+SKU-0255,Tee Fitting 3/4in,3.4,5.8,4.0,6.11,9,2
+SKU-0380,Circuit Board Assy,9.1,7.2,4.7,1.93,7,2
+SKU-0058,Cotter Pin Kit,2.0,0.7,1.9,0.39,99,0
+SKU-0241,Rocker Switch,4.3,1.8,2.9,1.91,17,3
+SKU-0168,Contactor Coil,4.4,3.0,1.1,2.17,7,1
+SKU-0178,Terminal Block,3.6,2.0,2.2,2.39,7,2
+SKU-0492,AC Motor 2HP,7.6,9.8,9.9,55.66,1,2
+SKU-0119,Ball Bearing,2.3,1.5,1.5,0.27,140,6
+SKU-0036,O-Ring Kit,1.2,0.8,1.5,0.71,38,2
+SKU-0403,VFD 1HP,4.8,3.5,5.2,2.7,1,5
+SKU-0188,Push Button Red,4.1,2.3,2.3,2.2,44,1
+SKU-0226,Toggle Switch,2.1,1.8,2.4,0.93,38,4
+SKU-0183,Push Button Green,3.6,1.4,1.2,1.69,27,2
+SKU-0044,Dowel Pin Set,1.9,1.6,0.6,0.58,30,5
+SKU-0364,VFD 1HP,12.0,7.5,5.5,5.23,5,1
+SKU-0061,Fuse 10A,1.6,0.9,1.9,0.8,32,2
+SKU-0414,Circuit Board Assy,10.8,7.0,3.4,12.75,3,2
+SKU-0429,Encoder,10.8,4.5,3.3,14.32,2,1
+SKU-0034,Cotter Pin Kit,2.7,1.5,1.9,0.88,168,4
+SKU-0489,Diaphragm Pump,11.1,4.9,9.1,58.42,1,5
+SKU-0225,Wire Connector Kit,3.6,2.9,1.3,1.31,8,5
+SKU-0084,Fuse 10A,1.1,1.2,1.4,1.33,162,0
+SKU-0319,Pipe Fitting Kit,6.0,4.0,3.2,2.69,15,5
+SKU-0416,Circuit Board Assy,11.6,7.2,5.2,14.59,9,1
+SKU-0455,Cylinder 2in Bore,11.4,11.7,6.8,38.08,3,1
+SKU-0411,Servo Drive,11.3,5.5,3.6,3.52,6,2
+SKU-0334,Air Filter Cartridge,4.7,3.1,2.3,3.62,5,2
+SKU-0070,Cotter Pin Kit,2.2,1.5,0.7,0.73,52,7
+SKU-0395,HMI Panel 4in,9.7,3.5,5.7,13.56,9,1
+SKU-0190,Relay 24V,2.8,2.8,2.9,1.57,33,0
+SKU-0427,Power Supply 24V,7.5,5.1,2.7,6.8,7,1
+SKU-0018,Fuse 10A,0.9,2.9,1.9,1.38,173,0
+SKU-0488,Centrifugal Pump,11.6,4.8,5.0,7.37,3,2
+SKU-0042,Ball Bearing,1.3,0.8,2.0,0.28,133,3
+SKU-0127,Cap Screw Set,2.9,3.0,0.9,1.44,196,1
+SKU-0301,Ball Valve 1in,3.7,4.9,2.2,1.63,9,3
+SKU-0356,HMI Panel 4in,11.7,6.9,5.7,14.89,3,2
+SKU-0135,Retaining Ring Kit,2.7,2.5,1.2,0.16,77,7
+SKU-0224,Pressure Transducer,4.9,2.6,1.9,1.73,27,2
+SKU-0180,DIN Rail Mount,1.8,2.6,1.1,1.8,33,4
+SKU-0153,Contactor Coil,2.5,2.3,1.9,2.0,12,5
+SKU-0052,Hex Bolt Pack,2.7,1.0,0.6,0.68,153,8
+SKU-0086,Cap Screw Set,2.5,0.7,0.8,1.05,98,3
+SKU-0185,Push Button Red,1.9,2.8,2.9,2.49,38,2
+SKU-0350,Pipe Fitting Kit,3.6,5.3,4.5,3.25,4,7
+SKU-0269,Tee Fitting 3/4in,3.6,5.7,2.9,5.11,10,10
+SKU-0250,Limit Switch,3.5,3.5,2.0,1.0,16,2
+SKU-0216,Wire Connector Kit,3.1,1.9,1.9,0.28,13,3
+SKU-0020,Sealed Bearing,0.7,1.7,0.6,1.15,52,1
+SKU-0460,Gearbox 20:1,9.6,8.2,7.7,40.07,1,4
+SKU-0157,Contactor Coil,2.7,1.3,1.7,1.7,32,4
+SKU-0303,Check Valve 3/4in,5.1,3.1,4.2,4.52,12,2
+SKU-0493,Gearbox 20:1,15.6,9.4,5.1,27.79,3,4
+SKU-0110,Dowel Pin Set,2.5,2.3,1.0,0.07,124,0
+SKU-0134,Lock Nut Pack,1.8,1.2,0.7,1.38,143,9
+SKU-0088,Shaft Seal,1.1,0.8,0.8,0.22,157,8
+SKU-0142,Dowel Pin Set,1.5,2.9,0.5,0.59,133,0
+SKU-0145,Dowel Pin Set,2.9,0.6,1.0,1.48,164,2
+SKU-0130,Fuse 30A,2.0,1.7,1.9,0.46,78,3
+SKU-0465,AC Motor 1HP,13.0,12.0,8.9,25.59,2,4
+SKU-0354,Encoder,5.7,4.0,2.2,5.91,5,2
+SKU-0384,Encoder,11.2,4.7,3.7,8.33,5,4
+SKU-0291,Pressure Regulator,4.0,3.8,4.0,5.02,5,2
+SKU-0223,Temp Sensor,2.6,3.5,2.4,1.36,31,4
+SKU-0026,O-Ring Kit,0.7,2.1,1.0,0.65,33,4
+SKU-0330,Solenoid Valve 24V,7.8,5.1,4.4,4.95,5,0
+SKU-0229,Proximity Sensor,4.4,1.1,1.1,1.64,41,0
+SKU-0009,Dowel Pin Set,2.1,1.8,0.9,0.72,89,8
+SKU-0394,Power Supply 24V,10.8,6.6,2.4,8.42,4,0
+SKU-0171,Relay 24V,4.5,1.6,2.2,1.36,30,6
+SKU-0123,Cap Screw Set,0.9,1.2,0.5,0.52,34,1
+SKU-0343,Tee Fitting 3/4in,7.0,5.8,3.8,5.54,13,1
+SKU-0480,Heat Exchanger,6.4,11.0,5.5,37.08,1,2
+SKU-0472,DC Motor 1/2HP,15.3,7.9,7.8,15.61,1,1
+SKU-0254,Elbow Fitting 1in,5.7,5.7,3.2,3.09,7,1
+SKU-0146,O-Ring Kit,2.0,2.5,0.8,1.17,172,0
+SKU-0015,Lock Nut Pack,2.7,0.5,1.6,1.04,157,6
+SKU-0195,Temp Sensor,4.8,1.6,1.9,0.94,6,1
+SKU-0033,Lock Nut Pack,2.8,1.8,0.6,0.79,67,0
+SKU-0267,Solenoid Valve 24V,4.3,4.0,3.7,4.8,11,4
+SKU-0326,Head Gasket,3.6,4.7,3.8,4.59,24,4
+SKU-0251,Head Gasket,5.7,5.0,4.6,5.61,25,1
+SKU-0332,Solenoid Valve 24V,4.7,5.4,2.3,1.24,10,4
+SKU-0126,Cap Screw Set,1.1,0.5,1.7,1.36,193,2
+SKU-0379,VFD 2HP,4.7,3.4,5.7,14.64,3,3
+SKU-0120,Lip Seal,2.1,1.5,0.6,0.53,192,7
+SKU-0342,Pipe Fitting Kit,4.9,4.2,2.3,3.14,17,4
+SKU-0236,Relay 120V,4.6,2.2,1.2,1.04,34,8
+SKU-0045,Cotter Pin Kit,1.1,0.8,1.7,1.33,124,8
+SKU-0463,Heat Exchanger,8.9,4.5,9.1,53.6,4,4
+SKU-0347,Air Filter Cartridge,4.0,4.2,3.7,5.4,16,3
+SKU-0208,Toggle Switch,1.6,2.6,1.6,2.17,8,6
+SKU-0450,Gearbox 20:1,15.3,6.6,8.4,41.3,1,0
+SKU-0221,Wire Connector Kit,2.1,1.9,1.4,2.46,13,1
+SKU-0397,PLC Module,7.5,7.8,2.9,4.65,6,10
+SKU-0117,Fuse 30A,2.5,1.5,1.5,1.24,58,0
+SKU-0470,Gearbox 20:1,16.7,8.0,9.2,27.9,3,0
+SKU-0051,Ball Bearing,0.8,1.6,1.6,0.5,175,7
+SKU-0376,Power Supply 24V,10.9,5.8,3.5,10.56,8,7
+SKU-0074,Fuse 10A,2.9,0.6,0.5,0.41,25,2
+SKU-0491,DC Motor 1/2HP,7.4,7.2,6.7,55.14,4,5
+SKU-0006,Sealed Bearing,1.9,2.6,1.4,1.3,167,0
+SKU-0016,Sealed Bearing,1.2,0.9,0.5,1.1,87,8
+SKU-0322,Pipe Fitting Kit,6.1,4.4,2.4,0.55,15,2
+SKU-0437,Centrifugal Pump,11.3,6.1,9.0,38.85,2,4
+SKU-0179,Wire Connector Kit,2.2,2.5,2.0,2.4,33,1
+SKU-0369,Power Supply 24V,10.2,6.8,2.5,14.9,3,2
+SKU-0446,Heat Exchanger,9.4,8.3,6.1,29.65,4,4
+SKU-0048,Sealed Bearing,1.5,0.6,1.2,0.34,137,0
+SKU-0209,Toggle Switch,1.9,1.9,2.8,1.88,29,0
+SKU-0094,Shaft Seal,0.7,1.1,1.3,0.65,172,5
+SKU-0484,AC Motor 2HP,9.4,10.3,7.0,41.54,3,5
+SKU-0420,Display Module,11.5,5.0,2.4,5.22,3,10
+SKU-0124,Hex Bolt Pack,0.9,1.8,1.3,1.2,63,2
+SKU-0173,Rocker Switch,4.0,3.0,2.6,0.67,14,0
+SKU-0453,Accumulator,16.0,10.7,5.5,32.39,3,3
+SKU-0087,Cap Screw Set,1.9,1.4,2.0,0.85,110,3
+SKU-0077,Fuse 30A,1.3,2.2,1.9,0.63,70,2
+SKU-0037,Dowel Pin Set,3.0,0.7,0.8,0.43,109,5
+SKU-0201,Terminal Block,2.3,1.4,1.9,1.58,20,2
+SKU-0290,Gasket Set,4.3,4.0,2.2,3.87,14,2
+SKU-0257,Elbow Fitting 1in,7.5,3.7,2.7,1.25,13,2
+SKU-0249,Limit Switch,2.9,2.9,2.8,2.19,8,4
+SKU-0041,Lock Nut Pack,1.7,2.8,1.8,0.18,128,4
+SKU-0237,Terminal Block,2.7,1.1,2.0,2.22,46,3
+SKU-0008,Cotter Pin Kit,2.6,0.9,1.0,1.02,199,7
+SKU-0102,Cap Screw Set,0.7,0.6,1.1,0.52,84,0
+SKU-0219,Limit Switch,1.9,3.1,1.9,2.26,33,9
+SKU-0434,Gearbox 10:1,7.1,10.6,7.8,33.82,1,0
+SKU-0435,Cylinder 3in Bore,9.5,4.7,9.1,23.5,4,2
+SKU-0340,Gasket Set,4.0,5.3,4.4,0.97,6,5
+SKU-0078,Fuse 15A,2.1,0.8,1.7,1.28,173,4
+SKU-0400,Power Supply 48V,6.5,4.3,2.5,3.21,5,4
+SKU-0298,Gate Valve 1in,5.8,5.8,3.0,6.23,18,10
+SKU-0296,Flow Control Valve,4.0,3.9,2.1,6.98,7,2
+SKU-0348,Tee Fitting 3/4in,7.2,4.5,2.2,0.73,10,1
+SKU-0164,Toggle Switch,3.1,2.1,2.2,1.09,18,4
+SKU-0449,Centrifugal Pump,9.4,7.9,8.2,10.89,2,2
+SKU-0292,Tee Fitting 3/4in,6.4,3.7,2.6,7.3,12,7
+SKU-0191,Toggle Switch,4.9,3.0,2.8,0.57,48,10
+SKU-0443,Diaphragm Pump,16.9,11.3,4.4,28.29,4,3
+SKU-0031,Shaft Seal,1.6,2.9,2.0,0.86,144,1
+SKU-0270,Air Filter Cartridge,5.3,6.0,3.1,5.76,18,5
+SKU-0005,Lip Seal,2.6,2.0,1.7,1.11,157,1
+SKU-0081,Lock Nut Pack,2.9,1.2,1.7,0.83,143,2
+SKU-0424,Servo Drive,11.4,7.8,2.9,8.92,8,2
+SKU-0365,VFD 2HP,4.7,6.3,4.6,1.73,5,2
+SKU-0407,Power Supply 24V,10.6,5.0,2.1,10.56,3,0
+SKU-0289,Air Filter Cartridge,7.0,5.7,3.7,7.76,20,3
+SKU-0486,Diaphragm Pump,8.8,4.1,4.5,11.63,5,2
+SKU-0275,Solenoid Valve 24V,4.5,3.1,2.8,0.52,9,2
+SKU-0457,Manifold Block,8.7,5.8,5.2,44.1,5,2
+SKU-0305,Pipe Fitting Kit,5.6,5.4,2.8,3.48,14,10
+SKU-0169,Push Button Green,1.8,1.8,1.9,1.07,45,0
+SKU-0277,Hydraulic Filter,4.4,3.5,2.4,5.31,23,9
+SKU-0065,Shaft Seal,1.6,2.3,0.9,0.54,158,0
+SKU-0046,Fuse 30A,2.8,2.7,2.0,1.23,125,2
+SKU-0014,Cotter Pin Kit,0.9,2.2,1.4,0.61,172,9
+SKU-0353,VFD 1HP,10.5,5.9,3.4,10.95,7,0
+SKU-0023,O-Ring Kit,0.7,0.6,1.3,0.9,21,2
+SKU-0498,AC Motor 1HP,13.7,5.3,9.1,56.11,2,1
+SKU-0244,Terminal Block,2.7,3.1,2.1,1.8,24,0
+SKU-0118,Thrust Bearing,1.8,2.0,1.8,1.32,132,1
+SKU-0408,VFD 2HP,6.2,7.4,2.1,9.67,4,3
+SKU-0040,Retaining Ring Kit,1.9,1.2,1.4,1.09,72,3
+SKU-0306,Pipe Fitting Kit,4.2,5.1,2.9,6.71,5,4
+SKU-0494,Accumulator,16.1,11.8,4.8,60.22,1,7
+SKU-0266,Oil Filter Element,3.9,3.4,3.0,2.36,11,1
+SKU-0358,Control Board,6.1,5.1,3.8,9.87,2,2
+SKU-0477,Manifold Block,6.5,11.6,6.7,36.22,5,2
+SKU-0378,Display Module,8.0,5.1,4.8,2.15,9,2
+SKU-0265,Air Filter Cartridge,6.1,4.9,3.2,3.71,13,2
+SKU-0109,O-Ring Kit,1.2,0.8,0.9,1.33,144,2
+SKU-0373,VFD 2HP,10.2,6.5,5.4,10.22,5,2
+SKU-0247,Relay 120V,2.1,2.6,2.2,2.12,14,5
+SKU-0162,Temp Sensor,4.1,1.5,1.8,0.92,28,1
+SKU-0467,Centrifugal Pump,7.2,5.0,5.6,53.5,2,9
+SKU-0387,VFD 1HP,4.4,4.8,5.7,3.51,1,4
+SKU-0315,Check Valve 3/4in,7.7,4.3,4.0,5.46,5,6
+SKU-0447,Cylinder 2in Bore,11.7,5.4,6.4,42.09,4,1
+SKU-0452,AC Motor 2HP,9.7,8.1,4.8,56.08,5,0
+SKU-0366,Power Supply 24V,9.2,6.5,2.0,7.68,3,4
+SKU-0438,AC Motor 2HP,14.0,10.5,6.5,50.39,2,3
+SKU-0043,Lock Nut Pack,0.5,0.7,1.8,1.36,159,1
+SKU-0304,Elbow Fitting 1in,5.2,5.8,2.5,7.39,19,0
+SKU-0022,Retaining Ring Kit,1.3,3.0,1.5,0.69,152,0
+SKU-0496,Cylinder 3in Bore,16.5,8.2,8.1,42.09,4,2
+SKU-0316,Solenoid Valve 24V,4.2,3.2,2.8,3.35,23,1
+SKU-0483,Cylinder 3in Bore,12.2,9.0,8.2,30.13,1,4
+SKU-0469,Centrifugal Pump,11.6,4.9,4.3,43.06,5,7
+SKU-0242,Contactor Coil,1.6,1.1,2.4,2.03,38,2
+SKU-0012,Cap Screw Set,0.9,0.8,1.6,0.83,169,2
+SKU-0125,Fuse 15A,1.5,2.2,1.2,0.9,79,1
+SKU-0228,Wire Connector Kit,2.1,3.4,1.3,1.68,43,2
+SKU-0273,Air Filter Cartridge,4.6,4.6,2.3,2.04,21,2
+SKU-0206,Relay 120V,3.7,3.0,1.1,1.96,34,0
+SKU-0132,Cotter Pin Kit,0.7,2.1,0.6,1.19,28,4
+SKU-0363,Encoder,10.7,3.1,5.7,3.21,8,1
+SKU-0198,Relay 120V,3.7,3.3,1.0,0.62,14,4
+SKU-0133,Thrust Bearing,0.7,1.2,1.6,0.3,53,6
+SKU-0391,Servo Drive,5.6,5.8,3.2,9.72,8,1
+SKU-0073,Shaft Seal,2.6,1.7,1.6,0.13,109,0
+SKU-0186,Relay 24V,3.3,1.0,1.6,2.38,26,10
+SKU-0139,Fuse 15A,1.7,2.3,1.5,0.22,31,9
+SKU-0417,PLC Module,4.7,4.2,2.9,8.37,1,2
+SKU-0099,Fuse 10A,2.5,2.0,1.7,0.34,49,4
+SKU-0409,Power Supply 24V,11.1,5.4,2.4,6.36,7,2
+SKU-0374,UPS Module,5.5,5.0,4.6,11.97,4,0
+SKU-0436,Centrifugal Pump,7.1,8.4,5.1,58.13,3,0
+SKU-0479,Cylinder 4in Bore,17.8,5.7,4.1,35.28,1,2
+SKU-0451,Accumulator,15.9,9.9,8.6,57.03,1,2
+SKU-0011,O-Ring Kit,2.8,1.9,1.6,0.36,147,2
+SKU-0063,Dowel Pin Set,2.5,2.7,1.1,1.36,134,7
+SKU-0160,Terminal Block,4.8,3.1,1.5,0.53,49,6
+SKU-0158,Toggle Switch,3.6,1.9,2.2,0.61,47,0
+SKU-0500,AC Motor 2HP,11.5,10.4,6.7,56.4,4,1
+SKU-0362,HMI Panel 4in,8.5,5.4,3.4,10.56,1,2
+SKU-0487,AC Motor 2HP,15.4,4.6,8.3,59.29,2,1
+SKU-0339,Ball Valve 1in,5.0,5.2,4.6,3.87,16,2
+SKU-0172,Limit Switch,2.7,1.4,2.0,0.37,37,1
+SKU-0030,Cap Screw Set,1.0,1.5,0.6,0.6,119,1
+SKU-0422,Encoder,6.9,6.3,5.3,6.3,5,2
+SKU-0167,Rocker Switch,1.9,2.2,1.9,0.41,39,4
+SKU-0240,LED Indicator,3.4,3.1,2.2,1.57,13,10
+SKU-0211,Relay 24V,3.6,3.1,2.1,0.87,10,1
+SKU-0144,Shaft Seal,1.0,0.8,1.8,0.71,189,2
+SKU-0307,Solenoid Valve 24V,3.2,4.2,3.1,4.07,23,0
+SKU-0276,Ball Valve 1in,4.7,3.2,5.0,7.51,5,10
+SKU-0159,Rocker Switch,4.5,1.9,2.5,1.48,32,4
+SKU-0193,Push Button Red,2.4,2.6,2.7,1.43,11,4
+SKU-0418,VFD 1HP,10.5,4.7,2.7,12.23,6,0
+SKU-0076,Dowel Pin Set,2.0,2.4,0.7,1.24,99,0
+SKU-0093,Sealed Bearing,2.6,1.5,0.6,0.96,33,2
+SKU-0245,Rocker Switch,2.7,1.3,1.8,0.84,49,4
+SKU-0439,Manifold Block,12.3,11.7,8.1,61.18,5,7
+SKU-0271,Solenoid Valve 24V,4.2,5.3,4.6,1.11,17,3
+SKU-0331,Elbow Fitting 1in,6.3,3.5,3.8,4.72,23,3
+SKU-0294,Ball Valve 1in,7.6,4.7,4.3,3.35,20,3
+SKU-0057,Lock Nut Pack,1.7,2.8,1.7,0.3,41,2
+SKU-0090,Fuse 15A,1.0,1.1,0.8,0.07,156,0
+SKU-0415,Servo Drive,10.4,6.5,5.7,1.39,6,8
+SKU-0295,Flange Gasket,4.8,5.6,3.4,6.52,18,6
+SKU-0138,Cap Screw Set,0.6,2.7,1.3,1.38,76,4
+SKU-0140,Cap Screw Set,0.8,1.1,1.3,0.61,114,4
+SKU-0107,Lip Seal,1.1,0.8,1.7,1.3,20,4
+SKU-0082,Dowel Pin Set,1.2,2.6,1.7,0.18,135,1
+SKU-0035,Sealed Bearing,1.5,2.0,1.3,1.41,72,3
+SKU-0095,Fuse 10A,1.8,1.6,1.2,1.3,129,2
+SKU-0113,Lock Nut Pack,2.4,0.8,0.6,1.17,126,2
+SKU-0163,LED Indicator,4.8,2.5,2.8,0.47,44,0
+SKU-0038,Lip Seal,1.2,1.6,1.3,0.49,187,4
+SKU-0314,Pipe Fitting Kit,5.0,5.3,2.1,2.55,17,1
+SKU-0252,Gasket Set,7.8,3.8,2.9,7.56,12,5
+SKU-0155,Relay 24V,2.6,1.6,2.9,1.75,35,0
+SKU-0027,Sealed Bearing,0.7,2.3,1.7,0.21,69,1
+SKU-0478,DC Motor 1/2HP,10.1,11.2,6.2,16.31,4,0
+SKU-0079,Lip Seal,1.8,2.2,0.6,0.99,23,7
+SKU-0279,Elbow Fitting 1in,7.3,3.4,5.0,3.45,7,2
+SKU-0080,Sealed Bearing,1.6,1.4,1.8,0.72,59,2
+SKU-0239,Proximity Sensor,2.9,2.4,1.4,1.43,9,1
+SKU-0468,Cylinder 3in Bore,7.1,6.8,8.5,23.43,3,2
+SKU-0402,Control Board,6.4,7.1,2.7,14.33,8,4
+SKU-0430,HMI Panel 4in,9.9,5.7,5.6,2.3,10,10
+SKU-0323,Ball Valve 1in,7.0,4.0,3.0,6.62,23,8
+SKU-0067,Ball Bearing,1.0,1.6,1.9,0.9,198,2
+SKU-0136,Fuse 15A,2.5,1.4,1.7,0.07,157,1
+SKU-0143,Fuse 15A,1.4,3.0,1.1,1.36,185,1
+SKU-0220,Wire Connector Kit,2.7,1.2,2.1,2.24,15,4
+SKU-0021,Lock Nut Pack,0.9,1.8,1.4,1.45,158,5
+SKU-0194,Push Button Red,1.9,1.2,1.3,1.18,37,1
+SKU-0426,Power Supply 48V,4.1,4.0,4.8,5.91,2,2
+SKU-0264,Gate Valve 1in,6.2,5.2,2.0,3.03,12,2
+SKU-0390,I/O Card,11.0,7.3,5.1,5.35,2,2
+SKU-0096,Ball Bearing,2.0,2.4,1.9,0.35,74,0
+SKU-0039,Fuse 15A,1.9,2.8,0.7,1.32,87,0
+SKU-0466,Heat Exchanger,11.7,11.5,6.2,23.01,2,5
+SKU-0230,LED Indicator,3.5,2.5,1.1,2.23,39,1
+SKU-0372,Servo Drive,10.3,4.2,4.6,4.47,10,4
+SKU-0100,Thrust Bearing,2.8,2.6,0.6,0.29,98,4
+SKU-0428,I/O Card,10.6,6.9,4.3,11.62,4,0
+SKU-0280,Pressure Regulator,3.0,3.1,2.9,5.55,20,1
+SKU-0189,Pressure Transducer,2.1,3.1,2.5,2.04,15,2
+SKU-0116,Retaining Ring Kit,1.1,1.5,1.8,0.65,101,4
+SKU-0227,Toggle Switch,2.2,3.4,1.5,1.6,44,4
+SKU-0104,Fuse 10A,2.4,1.7,1.5,1.38,66,10
+SKU-0321,Air Filter Cartridge,5.2,4.3,3.5,1.08,11,10
+SKU-0349,Gasket Set,5.7,3.5,3.4,6.07,18,2
+SKU-0351,UPS Module,5.7,5.1,4.9,10.15,4,0
+SKU-0283,Gate Valve 1in,6.0,5.1,2.1,6.05,15,2
+SKU-0361,VFD 1HP,11.7,7.1,4.0,5.52,5,2
+SKU-0385,Control Board,4.6,5.3,3.4,7.99,10,0
+SKU-0386,VFD 2HP,10.2,7.5,4.7,2.61,9,0
+SKU-0329,Oil Filter Element,5.2,4.8,3.7,4.51,25,0
+SKU-0399,I/O Card,5.2,3.8,3.9,6.69,9,0
+SKU-0148,Dowel Pin Set,1.3,0.9,0.6,1.13,154,0
+SKU-0262,Flange Gasket,5.8,3.3,4.9,2.63,23,3
+SKU-0122,Cotter Pin Kit,2.8,3.0,1.6,0.68,45,4
+SKU-0200,LED Indicator,3.7,1.2,2.7,1.3,39,2
+SKU-0383,UPS Module,8.1,7.1,3.0,6.21,5,2
+SKU-0471,DC Motor 1/2HP,17.9,6.7,9.9,58.57,4,2
+SKU-0341,Head Gasket,4.6,4.4,2.8,6.97,19,9
+SKU-0497,Gearbox 20:1,10.1,9.4,6.3,55.34,5,4
+SKU-0371,Resolver,5.7,7.5,2.6,2.72,7,1
+SKU-0184,DIN Rail Mount,3.8,1.3,2.4,0.3,40,1
+SKU-0017,Lock Nut Pack,2.8,2.7,0.9,0.98,175,1
+SKU-0346,Flange Gasket,3.7,3.9,3.4,0.9,14,10
+SKU-0105,Cotter Pin Kit,2.5,2.9,1.2,0.64,102,2
+SKU-0152,Terminal Block,2.0,1.3,2.2,1.5,50,2
+SKU-0032,O-Ring Kit,2.9,1.9,1.3,1.13,34,1
+SKU-0328,Elbow Fitting 1in,5.5,4.9,2.7,5.44,25,1
+SKU-0129,Shaft Seal,0.6,2.6,1.1,0.06,195,4
+SKU-0499,Diaphragm Pump,8.9,11.8,4.3,18.36,4,0
+SKU-0083,Dowel Pin Set,2.0,1.4,0.5,1.28,66,1
+SKU-0137,Cotter Pin Kit,2.4,1.2,1.1,0.98,115,0
+SKU-0357,VFD 1HP,5.2,4.6,3.0,12.81,7,2
+SKU-0029,Ball Bearing,2.1,1.9,0.5,0.19,80,1
+SKU-0473,Gear Pump,15.1,5.3,8.6,34.37,1,1
+SKU-0075,Thrust Bearing,1.7,0.8,1.9,0.72,85,5
+SKU-0196,Contactor Coil,2.8,2.0,1.2,0.64,25,9
+SKU-0013,Hex Bolt Pack,1.4,3.0,0.7,0.77,32,5
+SKU-0431,Cylinder 4in Bore,6.4,11.5,5.0,58.39,2,1
+SKU-0444,Speed Reducer,11.5,11.0,8.7,42.38,5,4
+SKU-0007,Ball Bearing,2.2,2.4,2.0,1.29,45,1
+SKU-0217,Rocker Switch,3.8,1.6,1.2,1.87,36,4
+SKU-0147,Thrust Bearing,1.9,2.5,0.7,1.31,53,0
+SKU-0274,Gate Valve 1in,7.0,4.4,3.5,3.93,4,4
+SKU-0214,Rocker Switch,3.3,2.9,1.3,0.17,43,3
+SKU-0293,Gasket Set,7.7,5.9,2.4,8.0,18,8
+SKU-0299,Gate Valve 1in,3.8,5.4,2.5,5.9,18,2
+SKU-0246,Relay 120V,2.4,2.6,2.9,1.49,19,4
+SKU-0481,Cylinder 3in Bore,7.3,10.7,4.3,11.95,4,2
+SKU-0181,Pressure Transducer,2.8,3.3,1.8,1.96,48,4
+SKU-0060,Dowel Pin Set,1.0,2.2,1.2,0.4,187,2
+SKU-0166,Relay 24V,4.9,1.1,1.4,2.37,13,6
+SKU-0485,Diaphragm Pump,14.4,6.4,4.2,34.78,2,3
+SKU-0278,Flow Control Valve,4.9,5.6,4.7,3.32,24,8
+SKU-0258,Elbow Fitting 1in,6.9,3.0,3.7,7.47,16,3
+SKU-0092,Dowel Pin Set,1.2,1.7,1.0,1.45,84,10
+SKU-0333,Check Valve 3/4in,5.9,4.7,3.3,3.43,24,4
+SKU-0068,Hex Bolt Pack,1.7,2.9,0.9,0.62,127,4
+SKU-0413,HMI Panel 4in,4.8,6.3,3.1,12.43,1,5
+SKU-0177,Contactor Coil,1.8,2.2,1.1,0.98,23,0
+SKU-0352,Power Supply 48V,6.1,7.3,2.3,13.11,2,5
+SKU-0149,Cap Screw Set,1.6,1.4,1.4,0.71,76,7
+SKU-0320,Pipe Fitting Kit,5.6,5.1,2.5,2.52,11,0
+SKU-0108,Cap Screw Set,1.5,1.0,1.0,1.15,180,0
+SKU-0103,Cotter Pin Kit,2.6,1.9,1.9,1.5,192,4
+SKU-0112,Hex Bolt Pack,2.6,3.0,0.9,0.85,118,2
+SKU-0324,Flange Gasket,4.6,5.8,2.6,2.86,15,9
+SKU-0398,Display Module,10.7,4.6,3.8,4.27,4,2
+SKU-0161,Rocker Switch,1.5,3.2,2.1,1.06,14,2
+SKU-0445,Gearbox 10:1,7.8,8.5,7.5,62.89,1,7
+SKU-0442,AC Motor 1HP,11.1,11.9,6.6,64.84,2,6
+SKU-0154,Relay 24V,3.1,1.6,1.7,1.19,31,3
+SKU-0263,Flow Control Valve,7.7,5.6,3.4,1.95,6,2
+SKU-0359,VFD 2HP,9.6,7.4,3.8,7.83,10,2
+SKU-0309,Gasket Set,4.1,5.6,4.7,4.07,4,9
+SKU-0495,AC Motor 1HP,6.8,9.2,4.1,57.1,5,5
+SKU-0071,Fuse 30A,1.5,1.9,0.5,0.98,54,5
+SKU-0404,HMI Panel 4in,5.6,5.0,4.7,14.13,2,3
+SKU-0458,AC Motor 1HP,11.7,5.1,5.0,53.05,2,1
+SKU-0151,Push Button Red,2.9,2.7,2.0,2.28,9,6
+SKU-0176,Rocker Switch,2.0,1.2,1.9,0.83,22,3
+SKU-0204,Rocker Switch,4.3,1.9,2.5,1.61,42,3
+SKU-0141,Retaining Ring Kit,2.9,1.5,1.6,0.27,126,3
+SKU-0128,O-Ring Kit,3.0,2.6,0.7,0.6,111,4
+SKU-0392,Encoder,10.2,6.7,4.2,12.14,3,1
+SKU-0312,Elbow Fitting 1in,7.5,4.0,4.3,1.55,25,4
+SKU-0215,Proximity Sensor,1.9,1.6,2.3,0.97,41,0
+SKU-0197,LED Indicator,2.0,1.1,2.8,1.23,13,7
+SKU-0405,Signal Conditioner,10.5,3.1,2.3,13.63,8,4
+SKU-0165,Rocker Switch,3.0,1.7,2.4,1.27,47,0
+SKU-0311,Solenoid Valve 24V,7.1,5.5,4.8,2.74,21,1
+SKU-0464,DC Motor 1/2HP,14.7,9.2,10.0,20.57,4,2
+SKU-0461,Manifold Block,16.1,8.5,7.6,21.96,1,1
+SKU-0199,Terminal Block,3.3,1.3,1.6,0.82,8,2
+SKU-0054,Lock Nut Pack,1.3,1.5,1.1,0.48,52,2
+SKU-0066,O-Ring Kit,1.5,0.9,0.8,0.65,104,3
+SKU-0375,VFD 1HP,8.0,6.0,4.1,14.69,6,8
+SKU-0089,O-Ring Kit,1.0,1.7,1.6,1.47,154,2
+SKU-0297,Flow Control Valve,5.9,5.2,2.9,1.97,10,0
+SKU-0355,Servo Drive,11.8,4.5,4.3,14.33,9,7
+SKU-0091,Ball Bearing,1.9,2.2,0.7,1.31,145,0
+SKU-0482,Centrifugal Pump,11.7,5.2,8.2,42.82,3,0
+SKU-0248,Proximity Sensor,3.5,2.8,1.4,1.16,31,2
+SKU-0300,Elbow Fitting 1in,7.8,4.6,4.5,1.06,24,0
+SKU-0222,Proximity Sensor,2.8,2.4,1.9,2.46,13,2
+SKU-0284,Gasket Set,6.8,5.3,2.4,7.95,10,6
+SKU-0025,O-Ring Kit,1.8,2.3,1.8,0.89,82,7
+SKU-0377,PLC Module,8.7,3.1,2.9,13.92,7,4
+SKU-0272,Oil Filter Element,7.6,3.3,4.5,7.27,9,2
+SKU-0003,Retaining Ring Kit,2.1,1.9,0.8,0.9,21,5
+SKU-0256,Flange Gasket,7.7,5.1,2.4,5.12,21,0
+SKU-0069,Lock Nut Pack,2.5,2.7,1.2,0.45,144,1
+SKU-0259,Gate Valve 1in,6.3,5.3,2.9,2.64,4,7
+SKU-0412,Signal Conditioner,10.5,4.4,5.2,7.6,6,5
+SKU-0454,Diaphragm Pump,15.9,8.0,7.8,12.43,1,1
+SKU-0474,Cylinder 3in Bore,11.2,7.4,6.9,5.28,5,1
+SKU-0231,Relay 120V,2.4,3.0,1.8,1.19,49,1
+SKU-0396,Power Supply 48V,11.8,3.4,2.4,2.87,7,2
+SKU-0064,Cap Screw Set,1.1,1.1,1.5,1.16,153,0
+SKU-0302,Hydraulic Filter,6.1,5.0,3.8,4.12,18,2
+SKU-0345,Air Filter Cartridge,5.4,4.6,4.8,7.48,8,3
+SKU-0448,Cylinder 4in Bore,8.9,10.0,9.5,58.82,1,1
+SKU-0440,Centrifugal Pump,6.9,11.2,8.3,35.13,5,5
+SKU-0213,Terminal Block,5.0,1.7,3.0,2.37,9,3
+SKU-0388,Display Module,9.2,4.1,3.0,13.82,6,0
+SKU-0056,Shaft Seal,1.0,2.5,1.4,0.52,133,0
+SKU-0174,Terminal Block,2.0,2.9,1.2,2.38,45,2
+SKU-0459,Cylinder 4in Bore,17.6,9.1,6.5,27.59,3,0
+SKU-0098,Ball Bearing,1.1,2.3,1.6,0.71,195,1
+SKU-0401,VFD 1HP,10.7,4.6,2.4,4.48,6,0
+SKU-0235,Push Button Red,2.6,2.4,1.6,1.93,36,10
+SKU-0111,Cap Screw Set,2.9,2.1,0.7,1.4,94,3
+SKU-0202,Wire Connector Kit,3.8,2.3,1.7,2.39,39,4
+SKU-0062,Cap Screw Set,0.8,1.7,1.3,0.86,101,10
+SKU-0097,Thrust Bearing,1.1,1.9,0.7,0.64,196,3
+SKU-0101,Fuse 30A,1.2,0.8,1.5,1.06,89,3
+SKU-0313,Tee Fitting 3/4in,7.9,3.2,3.3,6.79,13,4
+SKU-0131,O-Ring Kit,2.1,2.1,1.5,1.1,188,2
+SKU-0441,AC Motor 2HP,17.4,7.6,9.7,15.03,2,5
+SKU-0210,Relay 120V,3.9,1.9,2.6,0.74,10,2
+SKU-0370,PLC Module,8.9,3.8,3.4,3.98,3,10
+SKU-0381,PLC Module,6.0,7.6,2.5,9.57,1,2
+SKU-0368,I/O Card,5.8,3.4,5.2,2.44,6,5
+SKU-0421,Encoder,9.1,5.4,3.3,10.9,9,4
+SKU-0072,Ball Bearing,1.2,1.3,1.2,0.54,117,1
+SKU-0253,Tee Fitting 3/4in,6.5,4.0,3.0,7.5,11,2
+SKU-0085,Sealed Bearing,1.1,1.5,1.3,0.4,141,3
+SKU-0024,Ball Bearing,1.1,2.8,1.8,0.15,80,1
+SKU-0055,Hex Bolt Pack,2.2,2.8,1.4,0.49,160,6
+SKU-0360,I/O Card,9.8,5.3,4.7,6.02,2,7
+SKU-0192,Relay 120V,4.2,2.9,2.0,1.1,15,5
+SKU-0268,Gasket Set,3.3,3.4,2.9,3.54,19,9
+SKU-0281,Pressure Regulator,4.1,4.4,2.5,1.91,6,2
+SKU-0150,Retaining Ring Kit,2.5,2.7,1.3,0.71,27,1
+SKU-0410,VFD 1HP,9.0,7.0,5.2,14.85,6,1
+SKU-0325,Tee Fitting 3/4in,6.5,4.5,3.7,2.32,15,1
+SKU-0425,I/O Card,5.9,7.9,2.7,13.39,2,6
+SKU-0182,Wire Connector Kit,2.7,1.8,2.1,1.03,21,4
+SKU-0476,Gear Pump,14.3,6.8,4.8,28.01,5,0
+SKU-0002,Sealed Bearing,2.0,0.6,0.6,0.39,174,0
+SKU-0114,Shaft Seal,2.6,1.2,0.9,0.9,188,0
+SKU-0338,Head Gasket,5.8,5.9,2.7,3.54,8,2
+SKU-0389,Circuit Board Assy,7.0,5.5,5.6,3.51,9,10
+SKU-0050,Hex Bolt Pack,2.2,2.6,1.0,0.09,86,1
+SKU-0059,Thrust Bearing,0.6,1.1,1.2,1.28,38,2
+SKU-0232,Relay 24V,3.2,1.5,2.2,0.85,50,1
+SKU-0462,Centrifugal Pump,13.7,10.9,5.6,47.67,3,2
+SKU-0475,AC Motor 1HP,16.7,10.1,7.2,6.07,1,2
+SKU-0337,Elbow Fitting 1in,3.5,5.4,4.8,6.05,19,0
+SKU-0367,Control Board,7.6,3.0,3.4,2.69,7,3
+SKU-0243,Push Button Green,3.3,1.8,2.2,0.49,44,3
+SKU-0308,Oil Filter Element,5.5,4.3,4.4,4.74,6,4
+SKU-0318,Air Filter Cartridge,5.2,4.7,3.5,1.27,5,0
+SKU-0393,PLC Module,5.9,4.7,5.4,13.28,6,2
+SKU-0287,Check Valve 3/4in,5.5,5.9,4.8,5.54,19,1
+SKU-0170,Relay 24V,1.6,1.8,2.6,1.58,49,7
+SKU-0233,Relay 24V,2.0,1.9,2.1,0.87,34,1
+SKU-0433,Centrifugal Pump,8.9,4.4,7.4,55.39,2,0
+SKU-0115,Cap Screw Set,1.8,1.4,1.3,0.84,136,8
+SKU-0419,Circuit Board Assy,9.6,3.7,2.4,8.37,6,9
+SKU-0028,Thrust Bearing,1.6,1.2,0.9,1.39,133,4
+SKU-0490,Diaphragm Pump,10.3,7.5,7.7,57.71,1,1
+SKU-0187,Limit Switch,2.3,1.3,1.2,2.13,11,4
+SKU-0175,LED Indicator,3.5,2.7,2.8,1.64,44,2
+SKU-0234,Limit Switch,2.0,1.1,2.9,2.17,31,0
+SKU-0344,Oil Filter Element,3.9,5.1,3.5,3.64,7,3
+SKU-0336,Tee Fitting 3/4in,6.5,4.0,2.9,6.58,6,1
+SKU-0106,Lip Seal,1.5,1.7,1.5,0.63,160,0
+SKU-0288,Ball Valve 1in,3.7,4.1,4.3,4.05,10,2
+SKU-0261,Flow Control Valve,7.6,6.0,3.2,4.22,12,4
+SKU-0456,Cylinder 4in Bore,16.0,4.7,4.2,7.98,5,5
+SKU-0156,Temp Sensor,3.0,2.9,1.7,0.41,8,4
+SKU-0327,Tee Fitting 3/4in,5.3,5.1,3.3,2.68,25,1
+SKU-0317,Head Gasket,4.8,3.3,4.8,3.84,11,0
+SKU-0310,Flow Control Valve,5.7,5.0,2.5,6.88,3,8
+SKU-0406,Signal Conditioner,10.8,7.0,2.5,14.19,1,2
+SKU-0047,Fuse 30A,1.3,2.8,1.7,1.3,83,2
+SKU-0423,PLC Module,11.6,7.7,3.6,14.92,10,2
+SKU-0001,Cotter Pin Kit,0.8,2.4,0.9,0.25,46,4
+SKU-0282,Ball Valve 1in,6.1,5.8,4.7,2.3,5,0
+SKU-0286,Ball Valve 1in,4.5,3.2,4.8,7.1,8,3
+SKU-0019,Sealed Bearing,2.8,2.7,1.7,0.5,34,2
+SKU-0212,Toggle Switch,3.1,2.8,1.3,1.17,33,1
+SKU-0207,Proximity Sensor,4.3,3.2,1.6,0.84,30,10
+SKU-0053,Lip Seal,1.6,2.9,1.9,0.95,189,6
+SKU-0010,Cotter Pin Kit,1.3,2.4,0.6,1.24,100,0
+SKU-0335,Air Filter Cartridge,4.7,4.0,4.4,4.41,14,1
+SKU-0382,Control Board,9.9,3.6,4.8,10.82,3,1
