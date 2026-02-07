@@ -83,22 +83,22 @@ def default_config() -> dict:
         # height_tol = % an item can exceed the height (e.g. 10 → 10%)
         # fill_pct   = usable fraction of cell volume (e.g. 85 → 85%)
         "tray_config_1_cells": 6,
-        "tray_config_1_height": 24.0,
+        "tray_config_1_height": 4.0,
         "tray_config_1_height_tol": 10,
         "tray_config_1_fill_pct": 85,
 
         "tray_config_2_cells": 8,
-        "tray_config_2_height": 18.0,
+        "tray_config_2_height": 4.0,
         "tray_config_2_height_tol": 10,
         "tray_config_2_fill_pct": 85,
 
         "tray_config_3_cells": 16,
-        "tray_config_3_height": 12.0,
+        "tray_config_3_height": 4.0,
         "tray_config_3_height_tol": 10,
         "tray_config_3_fill_pct": 85,
 
         "tray_config_4_cells": 30,
-        "tray_config_4_height": 6.0,
+        "tray_config_4_height": 4.0,
         "tray_config_4_height_tol": 10,
         "tray_config_4_fill_pct": 85,
 
@@ -684,8 +684,14 @@ def run_slotting(input_csv: str, output_csv: str,
             print(f"    {e['sku_id']}: [{e['check']}] {e['message']}")
         print()
 
-    # Slot
-    rows, warnings = slot_skus(skus, cfg)
+    # Exclude SKUs that failed validation — they don't physically fit
+    failed_sku_ids = set(e["sku_id"] for e in errors)
+    valid_skus = [s for s in skus if s.sku_id not in failed_sku_ids]
+    if failed_sku_ids:
+        print(f"  {len(failed_sku_ids)} SKUs excluded from placement due to validation errors")
+
+    # Slot (only valid SKUs)
+    rows, warnings = slot_skus(valid_skus, cfg)
     write_slotting_map(rows, output_csv)
     print(f"Slotting map written to {output_csv}")
 

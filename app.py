@@ -76,7 +76,7 @@ CONFIG_FIELDS_POST = [
 # plus two calculated display-only values (cell_vol, eff_vol).
 TRAY_CONFIG_SUFFIXES = [
     {"suffix": "cells",      "label": "Cells per Tray",       "type": "int",   "default": 6},
-    {"suffix": "height",     "label": "Tray Height (in)",     "type": "float", "default": 12.0},
+    {"suffix": "height",     "label": "Tray Height (in)",     "type": "float", "default": 4.0},
     {"suffix": "height_tol", "label": "Height Tolerance (%)", "type": "int",   "default": 10},
     {"suffix": "fill_pct",   "label": "Fill Capacity (%)",    "type": "int",   "default": 85},
 ]

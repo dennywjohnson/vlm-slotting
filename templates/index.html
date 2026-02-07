@@ -198,6 +198,78 @@
       display: inline-block; background: #e8f4fd; color: #2980b9;
       padding: 3px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: 500;
     }
+
+    /* ===== DRILL-DOWN SUMMARY TABLES ===== */
+    .summary-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-bottom: 4px; }
+    .summary-table thead th {
+      background: #f0f2f5; padding: 10px 12px; text-align: left;
+      font-weight: 600; color: #555; white-space: nowrap;
+    }
+    .summary-table tbody td { padding: 10px 12px; border-top: 1px solid #f0f0f0; }
+    .summary-row {
+      cursor: pointer; transition: background 0.15s;
+    }
+    .summary-row:hover { background: #edf2fa; }
+    .summary-row .arrow {
+      display: inline-block; transition: transform 0.2s;
+      font-size: 0.7rem; margin-right: 6px; color: #999;
+    }
+    .summary-row.open .arrow { transform: rotate(90deg); }
+    .detail-panel { display: none; }
+    .detail-panel.open { display: table-row; }
+    .detail-panel td { padding: 0; }
+    .detail-inner {
+      padding: 12px 16px; background: #fafbfd; border: 1px solid #e8e8e8;
+      border-radius: 0 0 6px 6px; margin: 0 8px 8px;
+    }
+    .detail-inner .table-controls { display: flex; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; align-items: center; }
+    .detail-inner .table-wrapper {
+      overflow-x: auto; max-height: 400px; overflow-y: auto;
+      border-radius: 6px; border: 1px solid #e0e0e0;
+    }
+    .detail-inner table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .detail-inner thead th {
+      background: #f0f2f5; padding: 8px 10px; text-align: left;
+      font-weight: 600; color: #555; position: sticky; top: 0; z-index: 1;
+      cursor: pointer; user-select: none; white-space: nowrap; font-size: 0.8rem;
+    }
+    .detail-inner thead th:hover { background: #e4e7ec; }
+    .detail-inner thead th.sorted-asc::after  { content: " \25B2"; font-size: 0.65rem; }
+    .detail-inner thead th.sorted-desc::after { content: " \25BC"; font-size: 0.65rem; }
+    .detail-inner tbody td { padding: 6px 10px; border-top: 1px solid #f0f0f0; font-size: 0.8rem; }
+    .detail-inner tbody tr:hover { background: #f7f9fc; }
+    .detail-inner .row-count { font-size: 0.78rem; color: #888; margin-top: 6px; }
+
+    /* ===== VALIDATION ERROR DRILL-DOWN ===== */
+    .error-summary-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .error-summary-table thead th {
+      background: #f8d7da; padding: 10px 12px; text-align: left;
+      font-weight: 600; color: #721c24; white-space: nowrap;
+    }
+    .error-summary-table tbody td { padding: 10px 12px; border-top: 1px solid #f5c6cb; }
+    .error-summary-row {
+      cursor: pointer; transition: background 0.15s;
+    }
+    .error-summary-row:hover { background: #f5c6cb; }
+    .error-summary-row .arrow {
+      display: inline-block; transition: transform 0.2s;
+      font-size: 0.7rem; margin-right: 6px; color: #721c24;
+    }
+    .error-summary-row.open .arrow { transform: rotate(90deg); }
+    .error-detail-panel { display: none; }
+    .error-detail-panel.open { display: table-row; }
+    .error-detail-panel td { padding: 0; }
+    .error-detail-inner {
+      padding: 12px 16px; background: #fff5f5; border: 1px solid #f5c6cb;
+      border-radius: 0 0 6px 6px; margin: 0 8px 8px;
+    }
+    .error-detail-inner table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .error-detail-inner thead th {
+      background: #f8d7da; padding: 8px 10px; text-align: left;
+      font-weight: 600; color: #721c24;
+    }
+    .error-detail-inner tbody td { padding: 6px 10px; border-top: 1px solid #f5c6cb; }
+    .error-detail-inner tbody tr:hover { background: #fde8e8; }
   </style>
 </head>
 <body>
@@ -208,7 +280,7 @@
       <div>
         <h1>VLM Slotting Optimizer</h1>
         <span class="subtitle">
-          {{ config.num_towers }}-Tower Vertical Lift Module &mdash;
+          Multi-Tower Vertical Lift Module &mdash;
           Direct Mapping &amp; Golden Zone Optimization
         </span>
       </div>
@@ -285,6 +357,10 @@
               </div>
               <div class="config-grid">
                 <div class="config-field">
+                  <label>BIN Letter</label>
+                  <span class="config-calculated config-bin-letter">{{ "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[i-1] }}</span>
+                </div>
+                <div class="config-field">
                   <label>Cells per Tray</label>
                   <input type="number" data-suffix="cells"
                          name="tray_config_{{ i }}_cells"
@@ -293,10 +369,14 @@
                 </div>
                 <div class="config-field">
                   <label>Tray Height (in)</label>
-                  <input type="number" data-suffix="height"
-                         name="tray_config_{{ i }}_height"
-                         id="tray_config_{{ i }}_height"
-                         value="{{ config['tray_config_%d_height' % i] }}" step="0.1">
+                  <select data-suffix="height"
+                          name="tray_config_{{ i }}_height"
+                          id="tray_config_{{ i }}_height"
+                          class="filter-select" style="width:100%;">
+                    {% for h in [2, 4, 6, 8, 12] %}
+                    <option value="{{ h }}.0" {{ 'selected' if config['tray_config_%d_height' % i]|float == h }}>{{ h }}"</option>
+                    {% endfor %}
+                  </select>
                 </div>
                 <div class="config-field">
                   <label>Height Tolerance (%)</label>
@@ -420,11 +500,19 @@
       {% if summary.validation_errors %}
       <div style="margin-top: 16px; padding: 12px; background: #f8d7da; border-radius: 6px;">
         <h3 style="color: #721c24;">Validation Errors ({{ summary.validation_errors|length }})</h3>
-        <ul style="margin-top: 6px; padding-left: 20px; font-size: 0.85rem;">
-          {% for e in summary.validation_errors %}
-            <li><strong>{{ e.sku_id }}</strong> [{{ e.check }}]: {{ e.message }}</li>
-          {% endfor %}
-        </ul>
+        <table class="error-summary-table" id="errorSummaryTable" style="margin-top: 8px;">
+          <thead>
+            <tr>
+              <th></th>
+              <th>Error Type</th>
+              <th>Tray Config</th>
+              <th>Count</th>
+            </tr>
+          </thead>
+          <tbody id="errorSummaryBody">
+            <!-- Built by JS from validationErrors -->
+          </tbody>
+        </table>
       </div>
       {% endif %}
 
@@ -440,82 +528,26 @@
       {% endif %}
     </div>
 
-    <!-- RESULTS TABLE -->
+    <!-- RESULTS: AGGREGATED SUMMARY + DRILL-DOWN -->
     <div class="card">
       <h2>Slotting Map</h2>
-      <div class="table-controls">
-        <input type="text" class="search-box" id="searchBox"
-               placeholder="Search by SKU, description, tower...">
-        <select class="filter-select" id="towerFilter">
-          <option value="">All Towers</option>
-          {% for t in summary.towers %}
-            <option value="{{ t.tower }}">Tower {{ t.tower }}</option>
-          {% endfor %}
-        </select>
-        <select class="filter-select" id="configFilter">
-          <option value="">All Configs</option>
-          {% for config_name in summary.config_usage.keys()|sort %}
-            <option value="{{ config_name }}">{{ config_name }}</option>
-          {% endfor %}
-        </select>
-        <select class="filter-select" id="zoneFilter">
-          <option value="">All Zones</option>
-          <option value="Golden">Golden Zone</option>
-          <option value="Standard">Standard</option>
-        </select>
-      </div>
-
-      <div class="table-wrapper">
-        <table id="slottingTable">
-          <thead>
-            <tr>
-              <th data-col="0">Bin Label</th>
-              <th data-col="1">SKU</th>
-              <th data-col="2">Description</th>
-              <th data-col="3">Pick Priority</th>
-              <th data-col="4">Tower</th>
-              <th data-col="5">Tray</th>
-              <th data-col="6">Cell</th>
-              <th data-col="7">Config</th>
-              <th data-col="8">Picks/Wk</th>
-              <th data-col="9">Eaches</th>
-              <th data-col="10">Cell Wt</th>
-              <th data-col="11">Dims (in)</th>
-              <th data-col="12">SKU Vol</th>
-              <th data-col="13">Total Vol</th>
-              <th data-col="14">Cell Vol</th>
-              <th data-col="15">Zone</th>
-            </tr>
-          </thead>
-          <tbody id="tableBody">
-            {% for row in rows %}
-            <tr data-tower="{{ row.Tower }}" data-zone="{{ row.Tray_Zone }}" data-config="{{ row.Tray_Config }}">
-              <td style="font-family: monospace; font-weight: 600;">{{ row.Bin_Label }}</td>
-              <td>{{ row.SKU }}</td>
-              <td>{{ row.Description }}</td>
-              <td>{{ row.Pick_Priority }}</td>
-              <td>{{ row.Tower }}</td>
-              <td>{{ row.Tray }}</td>
-              <td>{{ row.Cell }}</td>
-              <td>{{ row.Tray_Config }}</td>
-              <td class="{% if row.Weekly_Picks >= 7 %}picks-high{% elif row.Weekly_Picks >= 4 %}picks-med{% else %}picks-low{% endif %}">
-                {{ row.Weekly_Picks }}
-              </td>
-              <td>{{ row.Eaches }}</td>
-              <td>{{ row.Cell_Weight_lbs }}</td>
-              <td>{{ row.Length_in }}&times;{{ row.Width_in }}&times;{{ row.Height_in }}</td>
-              <td>{{ row.SKU_Vol_in3 }}</td>
-              <td>{{ row.Total_Vol_in3 }}</td>
-              <td>{{ row.Cell_Vol_in3 }}</td>
-              <td class="{% if row.Tray_Zone == 'Golden' %}zone-golden{% else %}zone-standard{% endif %}">
-                {{ row.Tray_Zone }}
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      <div class="row-count" id="rowCount">Showing {{ rows|length }} of {{ rows|length }} items</div>
+      <table class="summary-table" id="placementSummaryTable">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Tray Config</th>
+            <th>BIN Letter</th>
+            <th>SKUs Placed</th>
+            <th>Trays Used</th>
+            <th>Golden Zone SKUs</th>
+            <th>Total Picks/Wk</th>
+            <th>Avg Cell Weight</th>
+          </tr>
+        </thead>
+        <tbody id="placementSummaryBody">
+          <!-- Built by JS from rows data -->
+        </tbody>
+      </table>
     </div>
 
     {% else %}
@@ -569,8 +601,10 @@
 
     // Attach volume-update listeners to inputs inside a tray config section
     function attachVolumeListeners(section) {
-      section.querySelectorAll('input[data-suffix="cells"], input[data-suffix="height"], input[data-suffix="fill_pct"]')
+      section.querySelectorAll('input[data-suffix="cells"], input[data-suffix="fill_pct"]')
         .forEach(el => el.addEventListener("input", updateVolumes));
+      section.querySelectorAll('select[data-suffix="height"]')
+        .forEach(el => el.addEventListener("change", updateVolumes));
     }
 
     // ===== ADD TRAY CONFIG =====
@@ -588,6 +622,10 @@
         </div>
         <div class="config-grid">
           <div class="config-field">
+            <label>BIN Letter</label>
+            <span class="config-calculated config-bin-letter">${String.fromCharCode(64 + num)}</span>
+          </div>
+          <div class="config-field">
             <label>Cells per Tray</label>
             <input type="number" data-suffix="cells"
                    name="tray_config_${num}_cells" id="tray_config_${num}_cells"
@@ -595,9 +633,15 @@
           </div>
           <div class="config-field">
             <label>Tray Height (in)</label>
-            <input type="number" data-suffix="height"
-                   name="tray_config_${num}_height" id="tray_config_${num}_height"
-                   value="12.0" step="0.1">
+            <select data-suffix="height"
+                    name="tray_config_${num}_height" id="tray_config_${num}_height"
+                    class="filter-select" style="width:100%;">
+              <option value="2.0">2"</option>
+              <option value="4.0" selected>4"</option>
+              <option value="6.0">6"</option>
+              <option value="8.0">8"</option>
+              <option value="12.0">12"</option>
+            </select>
           </div>
           <div class="config-field">
             <label>Height Tolerance (%)</label>
@@ -649,6 +693,10 @@
         section.dataset.config = num;
         section.querySelector(".config-group-label-text").textContent = `Tray Config ${num}`;
 
+        // Update BIN letter
+        const binLetter = section.querySelector(".config-bin-letter");
+        if (binLetter) binLetter.textContent = String.fromCharCode(64 + num);
+
         // Update input names and IDs
         section.querySelectorAll("input[data-suffix]").forEach(input => {
           const suffix = input.dataset.suffix;
@@ -677,66 +725,272 @@
     updateVolumes();
 
     {% if rows %}
-    // ===== SEARCH & FILTER =====
-    const searchBox    = document.getElementById("searchBox");
-    const towerFilter  = document.getElementById("towerFilter");
-    const configFilter = document.getElementById("configFilter");
-    const zoneFilter   = document.getElementById("zoneFilter");
-    const tableBody    = document.getElementById("tableBody");
-    const rowCount     = document.getElementById("rowCount");
-    const allRows      = Array.from(tableBody.querySelectorAll("tr"));
-    const totalCount   = allRows.length;
+    // ===== ROW DATA (from Jinja) =====
+    const rowData = {{ rows | tojson }};
+    const validationErrors = {{ summary.validation_errors | tojson }};
 
-    function applyFilters() {
-      const query  = searchBox.value.toLowerCase();
-      const tower  = towerFilter.value;
-      const config = configFilter.value;
-      const zone   = zoneFilter.value;
-      let visible = 0;
-
-      allRows.forEach(row => {
-        const text = row.textContent.toLowerCase();
-        const matchesSearch = !query  || text.includes(query);
-        const matchesTower  = !tower  || row.dataset.tower === tower;
-        const matchesConfig = !config || row.dataset.config === config;
-        const matchesZone   = !zone   || row.dataset.zone === zone;
-        const show = matchesSearch && matchesTower && matchesConfig && matchesZone;
-        row.style.display = show ? "" : "none";
-        if (show) visible++;
+    // ===== PLACEMENT SUMMARY: AGGREGATE BY TRAY CONFIG =====
+    (function buildPlacementSummary() {
+      // Group rows by Tray_Config
+      const configGroups = {};
+      rowData.forEach(r => {
+        const key = r.Tray_Config;
+        if (!configGroups[key]) {
+          configGroups[key] = { rows: [], trays: new Set(), goldenCount: 0, totalPicks: 0, totalWeight: 0 };
+        }
+        const g = configGroups[key];
+        g.rows.push(r);
+        g.trays.add(r.Tower + "-" + r.Tray);
+        if (r.Tray_Zone === "Golden") g.goldenCount++;
+        g.totalPicks += r.Weekly_Picks;
+        g.totalWeight += r.Cell_Weight_lbs;
       });
 
-      rowCount.textContent = `Showing ${visible} of ${totalCount} items`;
-    }
+      // BIN letter map: extract from Bin_Label (position 5, 0-indexed)
+      const configLetters = {};
+      rowData.forEach(r => {
+        if (!configLetters[r.Tray_Config]) {
+          configLetters[r.Tray_Config] = r.Bin_Label.charAt(5);
+        }
+      });
 
-    searchBox.addEventListener("input", applyFilters);
-    towerFilter.addEventListener("change", applyFilters);
-    configFilter.addEventListener("change", applyFilters);
-    zoneFilter.addEventListener("change", applyFilters);
+      const sortedConfigs = Object.keys(configGroups).sort();
+      const tbody = document.getElementById("placementSummaryBody");
 
-    // ===== COLUMN SORTING =====
-    const headers = document.querySelectorAll("#slottingTable thead th");
-    let currentSort = { col: -1, asc: true };
+      sortedConfigs.forEach(configName => {
+        const g = configGroups[configName];
+        const avgWt = g.rows.length > 0 ? (g.totalWeight / g.rows.length).toFixed(2) : "0";
+        const binLetter = configLetters[configName] || "?";
 
-    headers.forEach(th => {
-      th.addEventListener("click", () => {
-        const col = parseInt(th.dataset.col);
-        const asc = (currentSort.col === col) ? !currentSort.asc : true;
-        currentSort = { col, asc };
+        // Level 1: Summary row
+        const summaryTr = document.createElement("tr");
+        summaryTr.className = "summary-row";
+        summaryTr.innerHTML = `
+          <td><span class="arrow">&#9654;</span></td>
+          <td><strong>${configName}</strong></td>
+          <td style="font-family: monospace; font-weight: 600;">${binLetter}</td>
+          <td>${g.rows.length}</td>
+          <td>${g.trays.size}</td>
+          <td>${g.goldenCount}</td>
+          <td>${g.totalPicks}</td>
+          <td>${avgWt} lbs</td>
+        `;
+        tbody.appendChild(summaryTr);
 
-        headers.forEach(h => h.classList.remove("sorted-asc", "sorted-desc"));
-        th.classList.add(asc ? "sorted-asc" : "sorted-desc");
+        // Level 2: Detail panel row
+        const detailTr = document.createElement("tr");
+        detailTr.className = "detail-panel";
+        const detailTd = document.createElement("td");
+        detailTd.colSpan = 8;
 
-        allRows.sort((a, b) => {
-          let va = a.children[col].textContent.trim();
-          let vb = b.children[col].textContent.trim();
-          const na = parseFloat(va), nb = parseFloat(vb);
-          if (!isNaN(na) && !isNaN(nb)) return asc ? na - nb : nb - na;
-          return asc ? va.localeCompare(vb) : vb.localeCompare(va);
+        const detailDiv = document.createElement("div");
+        detailDiv.className = "detail-inner";
+
+        // Tower options for this config
+        const towers = [...new Set(g.rows.map(r => r.Tower))].sort();
+        const towerOpts = towers.map(t => `<option value="${t}">Tower ${t}</option>`).join("");
+
+        detailDiv.innerHTML = `
+          <div class="table-controls">
+            <input type="text" class="search-box" placeholder="Search by SKU, description, tower..."
+                   data-config="${configName}" style="flex:1; min-width:180px; padding:7px 10px; border:1px solid #ddd; border-radius:5px; font-size:0.85rem;">
+            <select class="filter-select" data-filter="tower" data-config="${configName}"
+                    style="padding:7px 10px; border:1px solid #ddd; border-radius:5px; font-size:0.85rem;">
+              <option value="">All Towers</option>
+              ${towerOpts}
+            </select>
+            <select class="filter-select" data-filter="zone" data-config="${configName}"
+                    style="padding:7px 10px; border:1px solid #ddd; border-radius:5px; font-size:0.85rem;">
+              <option value="">All Zones</option>
+              <option value="Golden">Golden Zone</option>
+              <option value="Standard">Standard</option>
+            </select>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th data-col="0">Bin Label</th>
+                  <th data-col="1">SKU</th>
+                  <th data-col="2">Description</th>
+                  <th data-col="3">Pick Priority</th>
+                  <th data-col="4">Tower</th>
+                  <th data-col="5">Tray</th>
+                  <th data-col="6">Cell</th>
+                  <th data-col="7">Picks/Wk</th>
+                  <th data-col="8">Eaches</th>
+                  <th data-col="9">Cell Wt</th>
+                  <th data-col="10">Dims (in)</th>
+                  <th data-col="11">SKU Vol</th>
+                  <th data-col="12">Total Vol</th>
+                  <th data-col="13">Cell Vol</th>
+                  <th data-col="14">Zone</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="row-count">Showing ${g.rows.length} of ${g.rows.length} items</div>
+        `;
+
+        // Populate detail table rows
+        const detailTbody = detailDiv.querySelector("tbody");
+        g.rows.forEach(r => {
+          const tr = document.createElement("tr");
+          tr.dataset.tower = r.Tower;
+          tr.dataset.zone = r.Tray_Zone;
+          const picksClass = r.Weekly_Picks >= 7 ? "picks-high" : (r.Weekly_Picks >= 4 ? "picks-med" : "picks-low");
+          const zoneClass = r.Tray_Zone === "Golden" ? "zone-golden" : "zone-standard";
+          tr.innerHTML = `
+            <td style="font-family:monospace;font-weight:600;">${r.Bin_Label}</td>
+            <td>${r.SKU}</td>
+            <td>${r.Description}</td>
+            <td>${r.Pick_Priority}</td>
+            <td>${r.Tower}</td>
+            <td>${r.Tray}</td>
+            <td>${r.Cell}</td>
+            <td class="${picksClass}">${r.Weekly_Picks}</td>
+            <td>${r.Eaches}</td>
+            <td>${r.Cell_Weight_lbs}</td>
+            <td>${r.Length_in}&times;${r.Width_in}&times;${r.Height_in}</td>
+            <td>${r.SKU_Vol_in3}</td>
+            <td>${r.Total_Vol_in3}</td>
+            <td>${r.Cell_Vol_in3}</td>
+            <td class="${zoneClass}">${r.Tray_Zone}</td>
+          `;
+          detailTbody.appendChild(tr);
         });
 
-        allRows.forEach(row => tableBody.appendChild(row));
+        detailTd.appendChild(detailDiv);
+        detailTr.appendChild(detailTd);
+        tbody.appendChild(detailTr);
+
+        // Toggle expand/collapse
+        summaryTr.addEventListener("click", () => {
+          summaryTr.classList.toggle("open");
+          detailTr.classList.toggle("open");
+        });
+
+        // Search & filter within this detail panel
+        const searchInput = detailDiv.querySelector('input[type="text"]');
+        const towerSelect = detailDiv.querySelector('[data-filter="tower"]');
+        const zoneSelect = detailDiv.querySelector('[data-filter="zone"]');
+        const detailRows = Array.from(detailTbody.querySelectorAll("tr"));
+        const countEl = detailDiv.querySelector(".row-count");
+        const totalForConfig = detailRows.length;
+
+        function filterDetail() {
+          const q = searchInput.value.toLowerCase();
+          const tw = towerSelect.value;
+          const zn = zoneSelect.value;
+          let visible = 0;
+          detailRows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            const show = (!q || text.includes(q))
+              && (!tw || row.dataset.tower === tw)
+              && (!zn || row.dataset.zone === zn);
+            row.style.display = show ? "" : "none";
+            if (show) visible++;
+          });
+          countEl.textContent = `Showing ${visible} of ${totalForConfig} items`;
+        }
+
+        searchInput.addEventListener("input", filterDetail);
+        towerSelect.addEventListener("change", filterDetail);
+        zoneSelect.addEventListener("change", filterDetail);
+
+        // Column sorting within this detail panel
+        const detailHeaders = detailDiv.querySelectorAll("thead th");
+        let detailSort = { col: -1, asc: true };
+
+        detailHeaders.forEach(th => {
+          th.addEventListener("click", () => {
+            const col = parseInt(th.dataset.col);
+            const asc = (detailSort.col === col) ? !detailSort.asc : true;
+            detailSort = { col, asc };
+
+            detailHeaders.forEach(h => h.classList.remove("sorted-asc", "sorted-desc"));
+            th.classList.add(asc ? "sorted-asc" : "sorted-desc");
+
+            detailRows.sort((a, b) => {
+              let va = a.children[col].textContent.trim();
+              let vb = b.children[col].textContent.trim();
+              const na = parseFloat(va), nb = parseFloat(vb);
+              if (!isNaN(na) && !isNaN(nb)) return asc ? na - nb : nb - na;
+              return asc ? va.localeCompare(vb) : vb.localeCompare(va);
+            });
+
+            detailRows.forEach(row => detailTbody.appendChild(row));
+          });
+        });
       });
-    });
+    })();
+
+    // ===== VALIDATION ERROR SUMMARY: GROUP BY ERROR TYPE x CONFIG =====
+    (function buildErrorSummary() {
+      if (!validationErrors || validationErrors.length === 0) return;
+
+      // Extract config from error message (e.g., "Config 3" or tray config mention)
+      function extractConfig(err) {
+        const m = err.message.match(/Config\s+(\d+)/);
+        return m ? "Config " + m[1] : "N/A";
+      }
+
+      // Group by check type x config
+      const groups = {};
+      validationErrors.forEach(e => {
+        const cfg = extractConfig(e);
+        const key = e.check + "||" + cfg;
+        if (!groups[key]) {
+          groups[key] = { check: e.check, config: cfg, errors: [] };
+        }
+        groups[key].errors.push(e);
+      });
+
+      const sortedKeys = Object.keys(groups).sort();
+      const tbody = document.getElementById("errorSummaryBody");
+
+      sortedKeys.forEach(key => {
+        const g = groups[key];
+
+        // Level 1: Error summary row
+        const summaryTr = document.createElement("tr");
+        summaryTr.className = "error-summary-row";
+        summaryTr.innerHTML = `
+          <td><span class="arrow">&#9654;</span></td>
+          <td>${g.check}</td>
+          <td>${g.config}</td>
+          <td><strong>${g.errors.length}</strong></td>
+        `;
+        tbody.appendChild(summaryTr);
+
+        // Level 2: Error detail panel
+        const detailTr = document.createElement("tr");
+        detailTr.className = "error-detail-panel";
+        const detailTd = document.createElement("td");
+        detailTd.colSpan = 4;
+
+        const detailDiv = document.createElement("div");
+        detailDiv.className = "error-detail-inner";
+
+        let tableHtml = '<table><thead><tr><th>SKU</th><th>Check</th><th>Message</th></tr></thead><tbody>';
+        g.errors.forEach(e => {
+          tableHtml += `<tr><td><strong>${e.sku_id}</strong></td><td>${e.check}</td><td>${e.message}</td></tr>`;
+        });
+        tableHtml += '</tbody></table>';
+        detailDiv.innerHTML = tableHtml;
+
+        detailTd.appendChild(detailDiv);
+        detailTr.appendChild(detailTd);
+        tbody.appendChild(detailTr);
+
+        // Toggle
+        summaryTr.addEventListener("click", () => {
+          summaryTr.classList.toggle("open");
+          detailTr.classList.toggle("open");
+        });
+      });
+    })();
     {% endif %}
   </script>
 </body>
