@@ -1,34 +1,26 @@
 """
-Generate ~2,160 machine shop warehouse SKUs for a VLM slotting optimizer.
+Generate 15,000 machine shop warehouse SKUs for a VLM slotting optimizer.
 
 SCENARIO:
-  A precision machine shop storing fasteners, bearings, seals, tooling,
-  fittings, and small mechanical components. Items are small, specialized,
-  and stored in modest quantities.
+  A precision machine shop with 12 tray configurations:
+  3 heights (2", 4", 6") × 4 cell counts (6, 8, 16, 30) = 12 configs.
+  1,250 SKUs per config, evenly distributed.
+
+TRAY CONFIGURATIONS (matching slotting.py defaults):
+  Config  1:  6-cell 2"H    Config  5:  6-cell 4"H    Config  9:  6-cell 6"H
+  Config  2:  8-cell 2"H    Config  6:  8-cell 4"H    Config 10:  8-cell 6"H
+  Config  3: 16-cell 2"H    Config  7: 16-cell 4"H    Config 11: 16-cell 6"H
+  Config  4: 30-cell 2"H    Config  8: 30-cell 4"H    Config 12: 30-cell 6"H
 
 DESIGN:
-  - SKU count per config is proportional to cell count, targeting ~12 trays
-    per config per tower for even tray distribution:
-      Config 1 ( 6-cell):  216 SKUs  (motors, housings, large fittings)
-      Config 2 ( 8-cell):  288 SKUs  (valves, manifolds, toolholders)
-      Config 3 (16-cell):  576 SKUs  (bearings, seals, small fittings)
-      Config 4 (30-cell): 1080 SKUs  (washers, nuts, bolts, pins, O-rings)
-  - Volume-aware: each SKU's total volume (single_vol * eaches) is
-    guaranteed to fit within the effective cell volume of its config
-  - Height-aware: single item height stays within tray height + tolerance
-  - Dimension-aware: narrow dimension fits the cell width with clearance
+  - Volume-aware: total volume (single_vol × eaches) fits effective cell vol
+  - Height-aware: item height within tray height + tolerance
+  - Dimension-aware: narrow dimension fits cell width with clearance
   - Weekly picks follow a right-skewed Pareto distribution
-
-EFFECTIVE CELL VOLUMES (at default config):
-  Config 1 ( 6-cell): 1026.8 cu in
-  Config 2 ( 8-cell):  759.9 cu in
-  Config 3 (16-cell):  359.6 cu in
-  Config 4 (30-cell):  172.7 cu in
 """
 
 import csv
 import random
-import math
 
 random.seed(42)
 
@@ -37,18 +29,23 @@ random.seed(42)
 # --------------------------------------------------------------------------
 TRAY_WIDTH = 78.0
 TRAY_DEPTH = 24.0
-TRAY_HEIGHT = 4.0
-HEIGHT_TOL = 10        # percent
-FILL_PCT = 85          # percent
 DIVIDER_WIDTH = 0.5
 ITEM_CLEARANCE = 0.25
+NUM_TOWERS = 3
+TRAYS_PER_TOWER = 50
+HEIGHT_TOL = 10   # percent
+FILL_PCT = 85     # percent
 
-CONFIGS = [
-    {"config": 1, "cells": 6},
-    {"config": 2, "cells": 8},
-    {"config": 3, "cells": 16},
-    {"config": 4, "cells": 30},
-]
+# 3 heights × 4 cell counts = 12 configs
+HEIGHTS = [2.0, 4.0, 6.0]
+CELL_COUNTS = [6, 8, 16, 30]
+
+CONFIGS = []
+config_num = 1
+for h in HEIGHTS:
+    for cells in CELL_COUNTS:
+        CONFIGS.append({"config": config_num, "cells": cells, "height": h})
+        config_num += 1
 
 # Compute effective cell dimensions for each config
 for c in CONFIGS:
@@ -56,54 +53,74 @@ for c in CONFIGS:
     c["cell_w"] = cell_w
     c["usable_w"] = cell_w - 2 * ITEM_CLEARANCE
     c["usable_d"] = TRAY_DEPTH - 2 * ITEM_CLEARANCE
-    c["max_h"] = TRAY_HEIGHT * (1 + HEIGHT_TOL / 100.0)
-    c["eff_vol"] = cell_w * TRAY_DEPTH * TRAY_HEIGHT * FILL_PCT / 100.0
+    c["max_h"] = c["height"] * (1 + HEIGHT_TOL / 100.0)
+    c["eff_vol"] = cell_w * TRAY_DEPTH * c["height"] * FILL_PCT / 100.0
 
 # --------------------------------------------------------------------------
-# PART DESCRIPTIONS by config (machine shop themed)
+# PART DESCRIPTIONS by height tier (machine shop themed)
 # --------------------------------------------------------------------------
-PARTS_BY_CONFIG = {
-    1: [  # Large parts — housings, motors, manifolds
+PARTS_BY_CELLS_AND_HEIGHT = {
+    # 6-cell (large parts)
+    (6, 2.0): [
+        "Flat Plate Bracket", "Base Plate Assembly", "Heat Sink Flat",
+        "Mounting Plate", "Cover Plate Large", "Shim Plate Set",
+    ],
+    (6, 4.0): [
         "Hydraulic Motor", "Gear Housing", "Pump Assembly", "Cylinder Block",
-        "Spindle Housing", "Servo Motor", "Gearbox Shell", "Valve Body Large",
-        "Bearing Housing", "Coupling Assembly", "Motor Mount Bracket",
-        "Pneumatic Cylinder", "Linear Actuator", "Chuck Body", "Rotary Table Base",
+        "Spindle Housing", "Servo Motor", "Gearbox Shell", "Bearing Housing",
     ],
-    2: [  # Medium parts — valves, toolholders, fittings
-        "Ball Valve Assembly", "Toolholder BT40", "Manifold Block", "Collet Chuck",
-        "Hydraulic Fitting", "Relief Valve", "Solenoid Valve", "Flow Control Valve",
-        "Quick-Change Holder", "End Mill Holder", "Drill Chuck", "Boring Bar Holder",
-        "Pressure Regulator", "Filter Housing", "Directional Valve",
+    (6, 6.0): [
+        "Tall Gear Housing", "Vertical Motor", "Tower Bearing Assembly",
+        "Tall Pump Body", "Spindle Column", "Deep Cylinder Block",
     ],
-    3: [  # Small parts — bearings, seals, small fittings
+    # 8-cell (medium parts)
+    (8, 2.0): [
+        "Flat Valve Body", "Thin Manifold", "Regulator Plate",
+        "Flat Collet Set", "Adapter Plate", "Spacer Block Thin",
+    ],
+    (8, 4.0): [
+        "Ball Valve Assembly", "Toolholder BT40", "Manifold Block",
+        "Collet Chuck", "Relief Valve", "Solenoid Valve", "Drill Chuck",
+    ],
+    (8, 6.0): [
+        "Tall Valve Assembly", "Deep Manifold Block", "Vertical Toolholder",
+        "Extended Collet Chuck", "Tall Filter Housing", "Deep Boring Bar",
+    ],
+    # 16-cell (small parts)
+    (16, 2.0): [
+        "Flat Gasket Set", "Shim Pack 0.5mm", "Shim Pack 1.0mm",
+        "Thrust Washer Set", "Wave Spring", "Belleville Washer",
+        "Copper Gasket", "Seal Plate", "Backing Ring",
+    ],
+    (16, 4.0): [
         "Deep Groove Bearing", "Angular Contact Bearing", "Thrust Bearing",
-        "Shaft Seal", "Lip Seal", "Hydraulic Seal Kit", "Pipe Fitting 1/2",
-        "O-Ring Kit Large", "Linear Bearing", "Needle Bearing",
-        "Cam Follower", "Rod End Bearing", "Pillow Block", "Spring Assortment",
-        "Retaining Ring Set",
+        "Shaft Seal", "Lip Seal", "Hydraulic Seal Kit", "Linear Bearing",
+        "Needle Bearing", "Cam Follower", "Pillow Block",
     ],
-    4: [  # Tiny parts — washers, nuts, bolts, pins, O-rings
-        "Hex Bolt M6", "Hex Bolt M8", "Socket Cap Screw M5", "Socket Cap Screw M8",
-        "Flat Washer M6", "Lock Washer M8", "Hex Nut M6", "Hex Nut M10",
-        "Dowel Pin 3mm", "Dowel Pin 5mm", "Roll Pin 4mm", "Cotter Pin",
-        "O-Ring AS568", "Set Screw M5", "Grub Screw M4",
+    (16, 6.0): [
+        "Tall Bearing Housing", "Deep Seal Assembly", "Extended Spring Kit",
+        "Tall Pillow Block", "Deep Cam Follower", "Vertical Bearing Mount",
+    ],
+    # 30-cell (tiny parts)
+    (30, 2.0): [
+        "O-Ring Metric Thin", "Flat Washer M3", "Flat Washer M4",
+        "Shim 0.1mm", "Shim 0.25mm", "Snap Ring Thin", "Wave Washer M5",
+        "Star Washer M4", "Circlip Internal", "PTFE Seal Ring",
+    ],
+    (30, 4.0): [
+        "Hex Bolt M6", "Hex Bolt M8", "Socket Cap Screw M5",
+        "Socket Cap Screw M8", "Flat Washer M6", "Lock Washer M8",
+        "Hex Nut M6", "Dowel Pin 3mm", "Roll Pin 4mm", "Set Screw M5",
+    ],
+    (30, 6.0): [
+        "Long Hex Bolt M8", "Long Socket Cap M6", "Stud Bolt M10",
+        "Standoff M5x40", "Long Dowel Pin 6mm", "Extension Spring Small",
+        "Tall Roll Pin 5mm", "Long Set Screw M6",
     ],
 }
 
-
-# SKUs per config: sized to fill ~12 trays per config per tower (3 towers)
-# This ensures even tray distribution and all SKUs fit the physical VLM.
-#   Config 1:  6 cells * 12 trays * 3 towers = 216 SKUs
-#   Config 2:  8 cells * 12 trays * 3 towers = 288 SKUs
-#   Config 3: 16 cells * 12 trays * 3 towers = 576 SKUs
-#   Config 4: 30 cells * 12 trays * 3 towers = 1080 SKUs
-#   Total: 2,160 SKUs
-NUM_TOWERS = 3
-TRAYS_PER_CONFIG_PER_TOWER = 12
-SKUS_PER_CONFIG = {
-    c["config"]: c["cells"] * TRAYS_PER_CONFIG_PER_TOWER * NUM_TOWERS
-    for c in CONFIGS
-}
+TOTAL_SKUS = 15000
+SKUS_PER_CONFIG = TOTAL_SKUS // len(CONFIGS)  # 1,250 each
 
 
 def generate_weekly_picks() -> int:
@@ -122,73 +139,55 @@ def generate_weekly_picks() -> int:
 
 
 def generate_sku(sku_num: int, cfg: dict) -> dict:
-    """
-    Generate a single SKU that is guaranteed to pass validation for its config.
-
-    Strategy:
-      1. Pick narrow dimension to fit cell width
-      2. Pick length to fit usable depth
-      3. Pick height under max allowed
-      4. Pick eaches, then verify total volume fits effective cell volume
-         If not, reduce eaches until it fits
-    """
+    """Generate a single SKU guaranteed to pass validation for its config."""
     usable_w = cfg["usable_w"]
-    usable_d = cfg["usable_d"]
     max_h = cfg["max_h"]
     eff_vol = cfg["eff_vol"]
     config_num = cfg["config"]
+    cells = cfg["cells"]
+    tray_h = cfg["height"]
 
-    # Narrow dimension: sized for this config's cell width
-    # Use config-specific ranges to keep parts realistic
-    if config_num == 1:
-        narrow = round(random.uniform(4.0, usable_w), 2)
-        wide_max = min(usable_d, 18.0)
-    elif config_num == 2:
-        narrow = round(random.uniform(2.5, usable_w), 2)
-        wide_max = min(usable_d, 14.0)
-    elif config_num == 3:
-        narrow = round(random.uniform(0.5, usable_w), 2)
-        wide_max = min(usable_d, 8.0)
-    else:  # config 4 — tiny parts
-        narrow = round(random.uniform(0.15, usable_w), 2)
-        wide_max = min(usable_d, 4.0)
+    # Dimension ranges by cell count
+    if cells <= 6:
+        narrow_min, narrow_max = 2.0, usable_w
+        wide_max = min(cfg["usable_d"], 18.0)
+        w_min, w_max = 0.10, 5.0
+        ea_min, ea_max = 1, 12
+    elif cells <= 8:
+        narrow_min, narrow_max = 1.5, usable_w
+        wide_max = min(cfg["usable_d"], 14.0)
+        w_min, w_max = 0.05, 3.0
+        ea_min, ea_max = 2, 20
+    elif cells <= 16:
+        narrow_min, narrow_max = 0.3, usable_w
+        wide_max = min(cfg["usable_d"], 8.0)
+        w_min, w_max = 0.02, 1.5
+        ea_min, ea_max = 3, 30
+    else:  # 30-cell
+        narrow_min, narrow_max = 0.10, usable_w
+        wide_max = min(cfg["usable_d"], 4.0)
+        w_min, w_max = 0.01, 0.5
+        ea_min, ea_max = 5, 50
 
-    wide = round(random.uniform(narrow, wide_max), 2)
+    # Height range: scale to tray height
+    h_min = max(0.03, tray_h * 0.05)
+    h_max = max_h * 0.95  # stay safely under tolerance limit
 
-    # Height: must stay under tray height + tolerance
-    if config_num == 4:
-        height = round(random.uniform(0.05, min(1.5, max_h)), 2)
-    elif config_num == 3:
-        height = round(random.uniform(0.10, min(2.5, max_h)), 2)
-    elif config_num == 2:
-        height = round(random.uniform(0.25, min(3.5, max_h)), 2)
-    else:
-        height = round(random.uniform(0.50, max_h), 2)
+    # Clamp
+    narrow_min = max(0.05, narrow_min)
+    if narrow_min >= narrow_max:
+        narrow_min = narrow_max * 0.5
 
-    # Weight per each (lighter for smaller configs)
-    if config_num == 4:
-        weight = round(random.uniform(0.01, 0.5), 2)
-    elif config_num == 3:
-        weight = round(random.uniform(0.02, 1.5), 2)
-    elif config_num == 2:
-        weight = round(random.uniform(0.05, 3.0), 2)
-    else:
-        weight = round(random.uniform(0.10, 5.0), 2)
+    narrow = round(random.uniform(narrow_min, narrow_max), 2)
+    wide = round(random.uniform(narrow, max(narrow, wide_max)), 2)
+    height = round(random.uniform(h_min, h_max), 2)
+    weight = round(random.uniform(w_min, w_max), 2)
 
     # Single SKU volume
     sku_vol = narrow * wide * height
 
-    # Eaches: start with a realistic range, then cap to fit cell volume
-    if config_num == 4:
-        max_eaches = random.randint(5, 50)
-    elif config_num == 3:
-        max_eaches = random.randint(3, 30)
-    elif config_num == 2:
-        max_eaches = random.randint(2, 20)
-    else:
-        max_eaches = random.randint(1, 10)
-
-    # Ensure total volume fits: eaches * sku_vol <= eff_vol
+    # Eaches: cap to fit effective cell volume
+    max_eaches = random.randint(ea_min, ea_max)
     if sku_vol > 0:
         vol_limit = int(eff_vol / sku_vol)
         eaches = max(1, min(max_eaches, vol_limit))
@@ -203,8 +202,7 @@ def generate_sku(sku_num: int, cfg: dict) -> dict:
     else:
         length, width = narrow, wide
 
-    # Pick a realistic description
-    parts = PARTS_BY_CONFIG[config_num]
+    parts = PARTS_BY_CELLS_AND_HEIGHT.get((cells, tray_h), ["Machine Part"])
     desc = random.choice(parts)
 
     return {
@@ -221,12 +219,12 @@ def generate_sku(sku_num: int, cfg: dict) -> dict:
 
 
 def generate_skus() -> list[dict]:
+    configs_by_num = {c["config"]: c for c in CONFIGS}
     skus = []
     sku_num = 1
 
     for cfg in CONFIGS:
-        count = SKUS_PER_CONFIG[cfg["config"]]
-        for _ in range(count):
+        for _ in range(SKUS_PER_CONFIG):
             skus.append(generate_sku(sku_num, cfg))
             sku_num += 1
 
@@ -263,39 +261,44 @@ def main():
     print(f"Generated {len(skus)} SKUs -> {output_file}\n")
 
     # Summary by config
+    configs_by_num = {c["config"]: c for c in CONFIGS}
     config_groups: dict[int, list[dict]] = {}
     for s in skus:
         config_groups.setdefault(s["Tray_Config"], []).append(s)
 
-    num_towers = 3
     for config_num in sorted(config_groups):
         group = config_groups[config_num]
-        cfg = [c for c in CONFIGS if c["config"] == config_num][0]
+        cfg = configs_by_num[config_num]
         picks = [s["Weekly_Picks"] for s in group]
         total_picks = sum(picks)
         vols = [s["Length_in"] * s["Width_in"] * s["Height_in"] * s["Eaches"] for s in group]
         eaches = [s["Eaches"] for s in group]
-        trays_filled = len(group) / (cfg["cells"] * num_towers)
-        print(f"  Config {config_num} ({cfg['cells']:2d}-cell): {len(group)} SKUs, "
-              f"total picks {total_picks}/wk, "
-              f"avg eaches {sum(eaches)/len(eaches):.1f}, "
-              f"avg total vol {sum(vols)/len(vols):.1f} cu in "
-              f"(eff_vol {cfg['eff_vol']:.0f}), "
-              f"~{trays_filled:.1f} trays/tower")
+        trays_needed = len(group) / (cfg["cells"] * NUM_TOWERS)
+        print(f"  Config {config_num:2d} ({cfg['cells']:2d}-cell {cfg['height']:.0f}\"H): "
+              f"{len(group):5d} SKUs, "
+              f"picks {total_picks:5d}/wk, "
+              f"avg ea {sum(eaches)/len(eaches):4.1f}, "
+              f"avg vol {sum(vols)/len(vols):6.1f}/{cfg['eff_vol']:.0f} cu in, "
+              f"~{trays_needed:.1f} trays/twr")
 
     # Validation preview
-    over_vol = 0
-    over_height = 0
+    over_vol = over_height = over_dim = 0
     for s in skus:
-        cfg = [c for c in CONFIGS if c["config"] == s["Tray_Config"]][0]
+        cfg = configs_by_num[s["Tray_Config"]]
         sku_vol = s["Length_in"] * s["Width_in"] * s["Height_in"]
         total_vol = sku_vol * s["Eaches"]
         if total_vol > cfg["eff_vol"]:
             over_vol += 1
         if s["Height_in"] > cfg["max_h"]:
             over_height += 1
-    print(f"\n  Volume violations: {over_vol}")
-    print(f"  Height violations: {over_height}")
+        narrow = min(s["Length_in"], s["Width_in"])
+        if narrow > cfg["usable_w"]:
+            over_dim += 1
+
+    print(f"\n  Volume violations:    {over_vol}")
+    print(f"  Height violations:    {over_height}")
+    print(f"  Dimension violations: {over_dim}")
+    print(f"  Total: {len(skus)} SKUs ({SKUS_PER_CONFIG} per config × {len(CONFIGS)} configs)")
 
 
 if __name__ == "__main__":

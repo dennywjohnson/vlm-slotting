@@ -70,37 +70,75 @@ def default_config() -> dict:
         "golden_zone_end": 35,
 
         # How many tray configurations are defined (keys below)
-        "num_tray_configs": 4,
+        "num_tray_configs": 12,
 
-        # Tray configurations — each config defines a cell layout plus
-        # height clearance and volume fill limits.
-        #   Config 1:  6 cells → ~12.6" wide (motors, pumps)
-        #   Config 2:  8 cells → ~9.3"  wide (PLCs, drives)
-        #   Config 3: 16 cells → ~4.4"  wide (filters, valves)
-        #   Config 4: 30 cells → ~2.1"  wide (bearings, fuses)
-        #
+        # Tray configurations: 3 heights (2", 4", 6") × 4 cell counts (6, 8, 16, 30)
         # height     = max item height for this tray layout (inches)
         # height_tol = % an item can exceed the height (e.g. 10 → 10%)
         # fill_pct   = usable fraction of cell volume (e.g. 85 → 85%)
+        #
+        # 2" height trays (thin/flat parts)
         "tray_config_1_cells": 6,
-        "tray_config_1_height": 4.0,
+        "tray_config_1_height": 2.0,
         "tray_config_1_height_tol": 10,
         "tray_config_1_fill_pct": 85,
 
         "tray_config_2_cells": 8,
-        "tray_config_2_height": 4.0,
+        "tray_config_2_height": 2.0,
         "tray_config_2_height_tol": 10,
         "tray_config_2_fill_pct": 85,
 
         "tray_config_3_cells": 16,
-        "tray_config_3_height": 4.0,
+        "tray_config_3_height": 2.0,
         "tray_config_3_height_tol": 10,
         "tray_config_3_fill_pct": 85,
 
         "tray_config_4_cells": 30,
-        "tray_config_4_height": 4.0,
+        "tray_config_4_height": 2.0,
         "tray_config_4_height_tol": 10,
         "tray_config_4_fill_pct": 85,
+
+        # 4" height trays (standard parts)
+        "tray_config_5_cells": 6,
+        "tray_config_5_height": 4.0,
+        "tray_config_5_height_tol": 10,
+        "tray_config_5_fill_pct": 85,
+
+        "tray_config_6_cells": 8,
+        "tray_config_6_height": 4.0,
+        "tray_config_6_height_tol": 10,
+        "tray_config_6_fill_pct": 85,
+
+        "tray_config_7_cells": 16,
+        "tray_config_7_height": 4.0,
+        "tray_config_7_height_tol": 10,
+        "tray_config_7_fill_pct": 85,
+
+        "tray_config_8_cells": 30,
+        "tray_config_8_height": 4.0,
+        "tray_config_8_height_tol": 10,
+        "tray_config_8_fill_pct": 85,
+
+        # 6" height trays (tall parts)
+        "tray_config_9_cells": 6,
+        "tray_config_9_height": 6.0,
+        "tray_config_9_height_tol": 10,
+        "tray_config_9_fill_pct": 85,
+
+        "tray_config_10_cells": 8,
+        "tray_config_10_height": 6.0,
+        "tray_config_10_height_tol": 10,
+        "tray_config_10_fill_pct": 85,
+
+        "tray_config_11_cells": 16,
+        "tray_config_11_height": 6.0,
+        "tray_config_11_height_tol": 10,
+        "tray_config_11_fill_pct": 85,
+
+        "tray_config_12_cells": 30,
+        "tray_config_12_height": 6.0,
+        "tray_config_12_height_tol": 10,
+        "tray_config_12_fill_pct": 85,
 
         # Spacing
         "divider_width": 0.5,     # inches per divider between cells
@@ -349,29 +387,46 @@ def assign_physical_trays(skus: list[SKU], cfg: dict) -> dict:
     """
     Determine which physical tray positions each config occupies per tower.
 
-    Strategy: configs with the highest total pick volume get golden zone
-    tray positions. Within each tower, trays are assigned starting from
-    the golden zone center and spiraling outward.
+    Strategy:
+      1. Each config gets trays proportional to its need, capped to fit
+         the available trays per tower so all configs get a fair share.
+      2. Configs with the highest total picks get golden zone positions
+         (assigned from the golden zone center spiraling outward).
 
     Returns: {(tower, config_num, config_tray): physical_tray_num}
     """
     tray_configs = get_tray_configs(cfg)
     num_towers = cfg["num_towers"]
+    trays_per_tower = cfg["trays_per_tower"]
     golden_start = cfg["golden_zone_start"]
     golden_end = cfg["golden_zone_end"]
     golden_mid = (golden_start + golden_end) / 2
 
-    # Count trays needed per config per tower
-    config_trays_needed: dict[int, int] = {}  # config_num → max config_tray
+    # Count trays needed per config (max config_tray across all SKUs)
+    config_trays_needed: dict[int, int] = {}
     for sku in skus:
         tc = tray_configs[sku.tray_config]
         loc = compute_cell_location(
             sku.pick_priority, num_towers, tc["cells"]
         )
-        key = sku.tray_config
-        config_trays_needed[key] = max(
-            config_trays_needed.get(key, 0), loc["config_tray"]
+        config_trays_needed[sku.tray_config] = max(
+            config_trays_needed.get(sku.tray_config, 0), loc["config_tray"]
         )
+
+    # Cap allocations so total fits within trays_per_tower
+    total_needed = sum(config_trays_needed.values())
+    if total_needed > trays_per_tower:
+        # Scale each config proportionally, ensuring at least 1 tray each
+        config_trays_alloc = {}
+        for cn, needed in config_trays_needed.items():
+            config_trays_alloc[cn] = max(1, round(needed * trays_per_tower / total_needed))
+        # Trim if rounding pushed over the limit
+        while sum(config_trays_alloc.values()) > trays_per_tower:
+            # Reduce the config with the most allocated trays
+            biggest = max(config_trays_alloc, key=config_trays_alloc.get)
+            config_trays_alloc[biggest] -= 1
+    else:
+        config_trays_alloc = dict(config_trays_needed)
 
     # Calculate total picks per config (for golden zone priority)
     config_picks: dict[int, int] = {}
@@ -382,22 +437,22 @@ def assign_physical_trays(skus: list[SKU], cfg: dict) -> dict:
 
     # Sort configs by total picks descending (highest gets golden zone)
     sorted_configs = sorted(
-        config_trays_needed.keys(),
+        config_trays_alloc.keys(),
         key=lambda c: config_picks.get(c, 0),
         reverse=True,
     )
 
     # Generate tray positions spiraling out from golden zone center
-    all_positions = list(range(1, cfg["trays_per_tower"] + 1))
+    all_positions = list(range(1, trays_per_tower + 1))
     all_positions.sort(key=lambda p: abs(p - golden_mid))
 
     # Assign physical positions per tower
-    tray_map = {}  # (tower, config_num, config_tray) → physical_tray
+    tray_map = {}
     for tower in range(1, num_towers + 1):
         pos_idx = 0
         for config_num in sorted_configs:
-            trays_needed = config_trays_needed[config_num]
-            for ct in range(1, trays_needed + 1):
+            trays_for_config = config_trays_alloc[config_num]
+            for ct in range(1, trays_for_config + 1):
                 if pos_idx < len(all_positions):
                     tray_map[(tower, config_num, ct)] = all_positions[pos_idx]
                     pos_idx += 1
@@ -472,7 +527,7 @@ def slot_skus(skus: list[SKU], cfg: dict) -> tuple[list[dict], list[dict]]:
             "Tower": loc["tower"],
             "Tray": physical_tray,
             "Cell": loc["cell_index"],
-            "Tray_Config": f"{tc['cells']}-cell",
+            "Tray_Config": f"{tc['cells']}-cell {tc['height']:.0f}\"",
             "Config_Tray": loc["config_tray"],
             "Pick_Priority": sku.pick_priority,
             "Weekly_Picks": sku.weekly_picks,
@@ -484,7 +539,7 @@ def slot_skus(skus: list[SKU], cfg: dict) -> tuple[list[dict], list[dict]]:
             "Height_in": sku.height,
             "SKU_Vol_in3": round(sku.sku_volume, 1),
             "Total_Vol_in3": round(sku.total_volume, 1),
-            "Cell_Vol_in3": round(eff_vol, 1),
+            "Cell_Vol_in3": round(cell_vol, 1),
             "Tray_Zone": zone,
         })
 
