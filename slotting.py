@@ -552,52 +552,38 @@ def slot_skus(skus: list[SKU], cfg: dict) -> tuple[list[dict], list[dict]]:
                             f"of {cfg['tray_max_weight']} lbs"),
             })
 
-    # ---- ZONE ASSIGNMENT: mark trays by pick density ----
-    # Golden    = top trays up to golden_zone_pct% of total picks
-    # Silver    = next trays up to silver_zone_pct%
-    # Bronze    = next trays up to bronze_zone_pct%
-    # Standard  = remaining trays with picks > 0
-    # Slow Mover = individual SKUs with 0 weekly picks (overrides tray zone)
-    tray_picks: dict[tuple, int] = {}
-    for r in rows:
-        tk = (r["Tower"], r["Tray"])
-        tray_picks[tk] = tray_picks.get(tk, 0) + r["Weekly_Picks"]
-
-    total_picks = sum(tray_picks.values())
+    # ---- ZONE ASSIGNMENT: per-SKU based on individual picks/week ----
+    # Sort SKUs by picks descending, accumulate, and assign zones:
+    # Golden     = top SKUs up to golden_zone_pct% of total picks
+    # Silver     = next SKUs up to silver_zone_pct%
+    # Bronze     = next SKUs up to bronze_zone_pct%
+    # Standard   = remaining SKUs with picks > 0
+    # Slow Mover = SKUs with 0 weekly picks
+    total_picks = sum(r["Weekly_Picks"] for r in rows)
     golden_limit = total_picks * cfg["golden_zone_pct"] / 100
     silver_limit = total_picks * cfg["silver_zone_pct"] / 100
     bronze_limit = total_picks * cfg["bronze_zone_pct"] / 100
 
-    # Sort trays by picks descending
-    sorted_trays = sorted(tray_picks.items(), key=lambda x: -x[1])
+    # Sort by picks descending (stable sort preserves order for ties)
+    ranked = sorted(range(len(rows)), key=lambda i: -rows[i]["Weekly_Picks"])
 
-    golden_trays = set()
-    silver_trays = set()
-    bronze_trays = set()
     accumulated = 0
-    for tray_key, picks in sorted_trays:
+    for idx in ranked:
+        picks = rows[idx]["Weekly_Picks"]
         if picks == 0:
-            break
-        if accumulated + picks <= golden_limit:
-            golden_trays.add(tray_key)
+            rows[idx]["Tray_Zone"] = "Slow Mover"
+        elif accumulated + picks <= golden_limit:
+            rows[idx]["Tray_Zone"] = "Golden"
+            accumulated += picks
         elif accumulated + picks <= silver_limit:
-            silver_trays.add(tray_key)
+            rows[idx]["Tray_Zone"] = "Silver"
+            accumulated += picks
         elif accumulated + picks <= bronze_limit:
-            bronze_trays.add(tray_key)
-        accumulated += picks
-
-    for r in rows:
-        tk = (r["Tower"], r["Tray"])
-        if r["Weekly_Picks"] == 0:
-            r["Tray_Zone"] = "Slow Mover"
-        elif tk in golden_trays:
-            r["Tray_Zone"] = "Golden"
-        elif tk in silver_trays:
-            r["Tray_Zone"] = "Silver"
-        elif tk in bronze_trays:
-            r["Tray_Zone"] = "Bronze"
+            rows[idx]["Tray_Zone"] = "Bronze"
+            accumulated += picks
         else:
-            r["Tray_Zone"] = "Standard"
+            rows[idx]["Tray_Zone"] = "Standard"
+            accumulated += picks
 
     rows.sort(key=lambda r: (r["Tower"], r["Tray"], r["Cell"]))
     return rows, warnings
