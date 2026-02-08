@@ -516,7 +516,8 @@
         {% for config_name, usage in summary.config_usage.items()|sort %}
         <div class="stat-card">
           <div class="stat-value" style="font-size: 1.2rem;">{{ config_name }}</div>
-          <div class="stat-label">{{ usage.cell_vol }} cu in &middot; {{ usage.trays }} trays &middot; {{ usage['items'] }} items</div>
+          <div class="stat-label">{{ usage.cell_vol }} cu in</div>
+          <div class="stat-label">{{ usage.trays }} trays &middot; {{ usage['items'] }} items</div>
         </div>
         {% endfor %}
       </div>
