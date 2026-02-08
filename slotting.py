@@ -68,6 +68,7 @@ def default_config() -> dict:
         # Zone thresholds (% of total picks — top trays by picks/week)
         "golden_zone_pct": 30,
         "silver_zone_pct": 50,
+        "bronze_zone_pct": 75,
 
         # How many tray configurations are defined (keys below)
         "num_tray_configs": 12,
@@ -362,18 +363,21 @@ def build_bin_label(zone: str, physical_tray: int,
 
 
 def compute_cell_location(pick_priority: int, num_towers: int,
-                          cells_per_tray: int) -> dict:
+                          cells_per_tray: int,
+                          tower_offset: int = 0) -> dict:
     """
     Map a Pick Priority to a physical cell location.
 
-    The cell number interleaves across towers:
-      Cell 1 → Tower 1, Cell 2 → Tower 2, Cell 3 → Tower 3,
-      Cell 4 → Tower 1 (next position), ...
+    The cell number interleaves across towers with an optional offset
+    to balance which tower gets the #1 pick across configs:
+      offset=0: Cell 1 → Tower 1, Cell 2 → Tower 2, Cell 3 → Tower 3
+      offset=1: Cell 1 → Tower 2, Cell 2 → Tower 3, Cell 3 → Tower 1
+      offset=2: Cell 1 → Tower 3, Cell 2 → Tower 1, Cell 3 → Tower 2
 
     Returns dict with: cell_number, tower, config_tray, cell_index
     """
     cell_number = pick_priority
-    tower = ((cell_number - 1) % num_towers) + 1
+    tower = ((cell_number - 1 + tower_offset) % num_towers) + 1
     position_in_tower = ((cell_number - 1) // num_towers) + 1
     config_tray = ((position_in_tower - 1) // cells_per_tray) + 1
     cell_index = ((position_in_tower - 1) % cells_per_tray) + 1
@@ -405,8 +409,9 @@ def assign_physical_trays(skus: list[SKU], cfg: dict) -> dict:
     config_trays_needed: dict[int, int] = {}
     for sku in skus:
         tc = tray_configs[sku.tray_config]
+        offset = (sku.tray_config - 1) % num_towers
         loc = compute_cell_location(
-            sku.pick_priority, num_towers, tc["cells"]
+            sku.pick_priority, num_towers, tc["cells"], offset
         )
         config_trays_needed[sku.tray_config] = max(
             config_trays_needed.get(sku.tray_config, 0), loc["config_tray"]
@@ -478,8 +483,9 @@ def slot_skus(skus: list[SKU], cfg: dict) -> tuple[list[dict], list[dict]]:
 
     for sku in skus:
         tc = tray_configs[sku.tray_config]
+        offset = (sku.tray_config - 1) % num_towers
         loc = compute_cell_location(
-            sku.pick_priority, num_towers, tc["cells"]
+            sku.pick_priority, num_towers, tc["cells"], offset
         )
 
         physical_tray = tray_map.get(
@@ -547,9 +553,10 @@ def slot_skus(skus: list[SKU], cfg: dict) -> tuple[list[dict], list[dict]]:
             })
 
     # ---- ZONE ASSIGNMENT: mark trays by pick density ----
-    # Golden = top trays up to golden_zone_pct% of total picks
-    # Silver = next trays from golden_zone_pct% to silver_zone_pct%
-    # Standard = remaining trays with picks
+    # Golden    = top trays up to golden_zone_pct% of total picks
+    # Silver    = next trays up to silver_zone_pct%
+    # Bronze    = next trays up to bronze_zone_pct%
+    # Standard  = remaining trays with picks > 0
     # Slow Mover = individual SKUs with 0 weekly picks (overrides tray zone)
     tray_picks: dict[tuple, int] = {}
     for r in rows:
@@ -559,12 +566,14 @@ def slot_skus(skus: list[SKU], cfg: dict) -> tuple[list[dict], list[dict]]:
     total_picks = sum(tray_picks.values())
     golden_limit = total_picks * cfg["golden_zone_pct"] / 100
     silver_limit = total_picks * cfg["silver_zone_pct"] / 100
+    bronze_limit = total_picks * cfg["bronze_zone_pct"] / 100
 
     # Sort trays by picks descending
     sorted_trays = sorted(tray_picks.items(), key=lambda x: -x[1])
 
     golden_trays = set()
     silver_trays = set()
+    bronze_trays = set()
     accumulated = 0
     for tray_key, picks in sorted_trays:
         if picks == 0:
@@ -573,6 +582,8 @@ def slot_skus(skus: list[SKU], cfg: dict) -> tuple[list[dict], list[dict]]:
             golden_trays.add(tray_key)
         elif accumulated + picks <= silver_limit:
             silver_trays.add(tray_key)
+        elif accumulated + picks <= bronze_limit:
+            bronze_trays.add(tray_key)
         accumulated += picks
 
     for r in rows:
@@ -583,6 +594,8 @@ def slot_skus(skus: list[SKU], cfg: dict) -> tuple[list[dict], list[dict]]:
             r["Tray_Zone"] = "Golden"
         elif tk in silver_trays:
             r["Tray_Zone"] = "Silver"
+        elif tk in bronze_trays:
+            r["Tray_Zone"] = "Bronze"
         else:
             r["Tray_Zone"] = "Standard"
 
@@ -636,6 +649,9 @@ def build_summary(rows: list[dict], warnings: list[dict],
             "silver_items": sum(
                 1 for r in tower_rows if r["Tray_Zone"] == "Silver"
             ),
+            "bronze_items": sum(
+                1 for r in tower_rows if r["Tray_Zone"] == "Bronze"
+            ),
             "slow_mover_items": sum(
                 1 for r in tower_rows if r["Tray_Zone"] == "Slow Mover"
             ),
@@ -650,6 +666,8 @@ def build_summary(rows: list[dict], warnings: list[dict],
     golden_picks = sum(r["Weekly_Picks"] for r in golden_rows)
     silver_rows = [r for r in rows if r["Tray_Zone"] == "Silver"]
     silver_picks = sum(r["Weekly_Picks"] for r in silver_rows)
+    bronze_rows = [r for r in rows if r["Tray_Zone"] == "Bronze"]
+    bronze_picks = sum(r["Weekly_Picks"] for r in bronze_rows)
     slow_mover_count = sum(1 for r in rows if r["Tray_Zone"] == "Slow Mover")
     total_picks = sum(r["Weekly_Picks"] for r in rows)
 
@@ -697,7 +715,17 @@ def build_summary(rows: list[dict], warnings: list[dict],
         "silver_pct": round(
             silver_picks / total_picks * 100, 1
         ) if total_picks else 0,
+        "golden_count": len(golden_rows),
+        "silver_count": len(silver_rows),
+        "bronze_picks": bronze_picks,
+        "bronze_pct": round(
+            bronze_picks / total_picks * 100, 1
+        ) if total_picks else 0,
+        "bronze_count": len(bronze_rows),
         "slow_mover_count": slow_mover_count,
+        "slow_mover_pct": round(
+            slow_mover_count / total_placed * 100, 1
+        ) if total_placed else 0,
         "heaviest_tray": round(heaviest, 1),
         "avg_tray_weight": round(avg_wt, 1),
         "weight_limit": cfg["tray_max_weight"],
@@ -730,6 +758,7 @@ def print_summary(rows: list[dict], warnings: list[dict],
         print(f"    Items stored:   {t['items']}")
         print(f"    Golden:         {t['golden_items']} items")
         print(f"    Silver:         {t['silver_items']} items")
+        print(f"    Bronze:         {t['bronze_items']} items")
         print(f"    Slow Movers:    {t['slow_mover_items']} items")
         print(f"    Total weight:   {t['weight']} lbs")
         print()
@@ -739,6 +768,8 @@ def print_summary(rows: list[dict], warnings: list[dict],
               f" weekly picks ({s['golden_pct']}%)")
         print(f"  Silver zone: {s['silver_picks']}/{s['total_picks']}"
               f" weekly picks ({s['silver_pct']}%)")
+        print(f"  Bronze zone: {s['bronze_picks']}/{s['total_picks']}"
+              f" weekly picks ({s['bronze_pct']}%)")
     print(f"  Slow Movers: {s['slow_mover_count']} SKUs (0 picks/week)")
     print()
     print(f"  Avg tray weight:  {s['avg_tray_weight']} lbs")

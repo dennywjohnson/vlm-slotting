@@ -186,6 +186,7 @@
 
     .zone-golden     { color: #f39c12; font-weight: 600; }
     .zone-silver     { color: #95a5a6; font-weight: 600; }
+    .zone-bronze     { color: #cd7f32; font-weight: 600; }
     .zone-standard   { color: #555; }
     .zone-slowmover  { color: #bdc3c7; font-style: italic; }
     .picks-high { color: #e74c3c; font-weight: 700; }
@@ -485,14 +486,22 @@
         <div class="stat-card">
           <div class="stat-value golden">{{ summary.golden_pct }}%</div>
           <div class="stat-label">Golden Zone Picks</div>
+          <div class="stat-label">{{ summary.golden_count }} SKUs</div>
         </div>
         <div class="stat-card">
           <div class="stat-value" style="color: #95a5a6;">{{ summary.silver_pct }}%</div>
           <div class="stat-label">Silver Zone Picks</div>
+          <div class="stat-label">{{ summary.silver_count }} SKUs</div>
         </div>
         <div class="stat-card">
-          <div class="stat-value" style="color: #bdc3c7;">{{ summary.slow_mover_count }}</div>
+          <div class="stat-value" style="color: #cd7f32;">{{ summary.bronze_pct }}%</div>
+          <div class="stat-label">Bronze Zone Picks</div>
+          <div class="stat-label">{{ summary.bronze_count }} SKUs</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color: #bdc3c7;">{{ summary.slow_mover_pct }}%</div>
           <div class="stat-label">Slow Movers (0 picks)</div>
+          <div class="stat-label">{{ summary.slow_mover_count }} SKUs</div>
         </div>
         <div class="stat-card">
           <div class="stat-value">{{ summary.heaviest_tray }} lbs</div>
@@ -530,6 +539,7 @@
           <div class="tower-stat"><span>Trays used</span><span>{{ t.trays_used }}</span></div>
           <div class="tower-stat"><span>Golden</span><span>{{ t.golden_items }}</span></div>
           <div class="tower-stat"><span>Silver</span><span>{{ t.silver_items }}</span></div>
+          <div class="tower-stat"><span>Bronze</span><span>{{ t.bronze_items }}</span></div>
           <div class="tower-stat"><span>Slow Movers</span><span>{{ t.slow_mover_items }}</span></div>
           <div class="tower-stat"><span>Weight</span><span>{{ t.weight }} lbs</span></div>
         </div>
@@ -551,6 +561,7 @@
             <th>Trays Used</th>
             <th>Golden</th>
             <th>Silver</th>
+            <th>Bronze</th>
             <th>Slow Movers</th>
             <th>Total Picks/Wk</th>
             <th>Avg Cell Weight</th>
@@ -790,13 +801,14 @@
       rowData.forEach(r => {
         const key = r.Tray_Config;
         if (!configGroups[key]) {
-          configGroups[key] = { rows: [], trays: new Set(), goldenCount: 0, silverCount: 0, slowMoverCount: 0, totalPicks: 0, totalWeight: 0 };
+          configGroups[key] = { rows: [], trays: new Set(), goldenCount: 0, silverCount: 0, bronzeCount: 0, slowMoverCount: 0, totalPicks: 0, totalWeight: 0 };
         }
         const g = configGroups[key];
         g.rows.push(r);
         g.trays.add(r.Tower + "-" + r.Tray);
         if (r.Tray_Zone === "Golden") g.goldenCount++;
         else if (r.Tray_Zone === "Silver") g.silverCount++;
+        else if (r.Tray_Zone === "Bronze") g.bronzeCount++;
         else if (r.Tray_Zone === "Slow Mover") g.slowMoverCount++;
         g.totalPicks += r.Weekly_Picks;
         g.totalWeight += r.Cell_Weight_lbs;
@@ -829,6 +841,7 @@
           <td>${g.trays.size}</td>
           <td class="zone-golden">${g.goldenCount}</td>
           <td class="zone-silver">${g.silverCount}</td>
+          <td class="zone-bronze">${g.bronzeCount}</td>
           <td class="zone-slowmover">${g.slowMoverCount}</td>
           <td>${g.totalPicks}</td>
           <td>${avgWt} lbs</td>
@@ -839,7 +852,7 @@
         const detailTr = document.createElement("tr");
         detailTr.className = "detail-panel";
         const detailTd = document.createElement("td");
-        detailTd.colSpan = 10;
+        detailTd.colSpan = 11;
 
         const detailDiv = document.createElement("div");
         detailDiv.className = "detail-inner";
@@ -862,6 +875,7 @@
               <option value="">All Zones</option>
               <option value="Golden">Golden</option>
               <option value="Silver">Silver</option>
+              <option value="Bronze">Bronze</option>
               <option value="Standard">Standard</option>
               <option value="Slow Mover">Slow Mover</option>
             </select>
@@ -900,7 +914,7 @@
           tr.dataset.tower = r.Tower;
           tr.dataset.zone = r.Tray_Zone;
           const picksClass = r.Weekly_Picks >= 7 ? "picks-high" : (r.Weekly_Picks >= 4 ? "picks-med" : "picks-low");
-          const zoneClass = r.Tray_Zone === "Golden" ? "zone-golden" : r.Tray_Zone === "Silver" ? "zone-silver" : r.Tray_Zone === "Slow Mover" ? "zone-slowmover" : "zone-standard";
+          const zoneClass = r.Tray_Zone === "Golden" ? "zone-golden" : r.Tray_Zone === "Silver" ? "zone-silver" : r.Tray_Zone === "Bronze" ? "zone-bronze" : r.Tray_Zone === "Slow Mover" ? "zone-slowmover" : "zone-standard";
           tr.innerHTML = `
             <td style="font-family:monospace;font-weight:600;">${r.Bin_Label}</td>
             <td>${r.SKU}</td>

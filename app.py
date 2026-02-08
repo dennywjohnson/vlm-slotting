@@ -64,6 +64,7 @@ CONFIG_FIELDS_PRE = [
     {"key": "tray_max_weight",   "label": "Max Weight per Tray (lbs)",  "type": "float", "group": "Tray Dimensions"},
     {"key": "golden_zone_pct",   "label": "Golden Zone (% of total picks)", "type": "int", "group": "Zone Thresholds"},
     {"key": "silver_zone_pct",   "label": "Silver Zone (% of total picks)", "type": "int", "group": "Zone Thresholds"},
+    {"key": "bronze_zone_pct",   "label": "Bronze Zone (% of total picks)", "type": "int", "group": "Zone Thresholds"},
 ]
 
 CONFIG_FIELDS_POST = [
@@ -185,8 +186,14 @@ def run():
     if not (1 <= cfg["silver_zone_pct"] <= 100):
         flash("Silver Zone % must be between 1 and 100.", "error")
         return redirect(url_for("index"))
+    if not (1 <= cfg["bronze_zone_pct"] <= 100):
+        flash("Bronze Zone % must be between 1 and 100.", "error")
+        return redirect(url_for("index"))
     if cfg["silver_zone_pct"] <= cfg["golden_zone_pct"]:
         flash("Silver Zone % must be greater than Golden Zone %.", "error")
+        return redirect(url_for("index"))
+    if cfg["bronze_zone_pct"] <= cfg["silver_zone_pct"]:
+        flash("Bronze Zone % must be greater than Silver Zone %.", "error")
         return redirect(url_for("index"))
 
     # Save config for next page load (so the form remembers your values)
