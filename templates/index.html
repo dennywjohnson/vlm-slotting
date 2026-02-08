@@ -270,6 +270,33 @@
     }
     .error-detail-inner tbody td { padding: 6px 10px; border-top: 1px solid #f5c6cb; }
     .error-detail-inner tbody tr:hover { background: #fde8e8; }
+
+    /* ===== WARNING DRILL-DOWN ===== */
+    .warning-summary-table tbody td { padding: 10px 12px; border-top: 1px solid #ffeeba; }
+    .warning-summary-row {
+      cursor: pointer; transition: background 0.15s;
+    }
+    .warning-summary-row:hover { background: #ffeeba; }
+    .warning-summary-row .arrow {
+      display: inline-block; transition: transform 0.2s;
+      font-size: 0.7rem; margin-right: 6px; color: #856404;
+    }
+    .warning-summary-row.open .arrow { transform: rotate(90deg); }
+    .warning-detail-panel { display: none; }
+    .warning-detail-panel.open { display: table-row; }
+    .warning-detail-panel td { padding: 0; }
+    .warning-detail-inner {
+      padding: 12px 16px; background: #fffdf0; border: 1px solid #ffeeba;
+      border-radius: 0 0 6px 6px; margin: 0 8px 8px;
+      max-height: 300px; overflow-y: auto;
+    }
+    .warning-detail-inner table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .warning-detail-inner thead th {
+      background: #fff3cd; padding: 8px 10px; text-align: left;
+      font-weight: 600; color: #856404;
+    }
+    .warning-detail-inner tbody td { padding: 6px 10px; border-top: 1px solid #ffeeba; }
+    .warning-detail-inner tbody tr:hover { background: #fff8e1; }
   </style>
 </head>
 <body>
@@ -489,7 +516,6 @@
         {% for t in summary.towers %}
         <div class="tower-card">
           <h3>Tower {{ t.tower }}</h3>
-          <div class="tower-stat"><span>Items</span><span>{{ t.items }}</span></div>
           <div class="tower-stat"><span>Trays used</span><span>{{ t.trays_used }}</span></div>
           <div class="tower-stat"><span>Golden zone</span><span>{{ t.golden_items }}</span></div>
           <div class="tower-stat"><span>Weight</span><span>{{ t.weight }} lbs</span></div>
@@ -497,35 +523,6 @@
         {% endfor %}
       </div>
 
-      {% if summary.validation_errors %}
-      <div style="margin-top: 16px; padding: 12px; background: #f8d7da; border-radius: 6px;">
-        <h3 style="color: #721c24;">Validation Errors ({{ summary.validation_errors|length }})</h3>
-        <table class="error-summary-table" id="errorSummaryTable" style="margin-top: 8px;">
-          <thead>
-            <tr>
-              <th></th>
-              <th>Error Type</th>
-              <th>Tray Config</th>
-              <th>Count</th>
-            </tr>
-          </thead>
-          <tbody id="errorSummaryBody">
-            <!-- Built by JS from validationErrors -->
-          </tbody>
-        </table>
-      </div>
-      {% endif %}
-
-      {% if summary.warnings %}
-      <div style="margin-top: 16px; padding: 12px; background: #fff3cd; border-radius: 6px;">
-        <h3 style="color: #856404;">Warnings ({{ summary.warnings|length }})</h3>
-        <ul style="margin-top: 6px; padding-left: 20px; font-size: 0.85rem;">
-          {% for w in summary.warnings %}
-            <li>[{{ w.type }}] {{ w.message }}</li>
-          {% endfor %}
-        </ul>
-      </div>
-      {% endif %}
     </div>
 
     <!-- RESULTS: AGGREGATED SUMMARY + DRILL-DOWN -->
@@ -549,6 +546,47 @@
         </tbody>
       </table>
     </div>
+
+    {% if summary.validation_errors %}
+    <div class="card">
+      <div style="padding: 12px; background: #f8d7da; border-radius: 6px;">
+        <h3 style="color: #721c24;">Validation Errors ({{ summary.validation_errors|length }})</h3>
+        <table class="error-summary-table" id="errorSummaryTable" style="margin-top: 8px;">
+          <thead>
+            <tr>
+              <th></th>
+              <th>Error Type</th>
+              <th>Tray Config</th>
+              <th>Count</th>
+            </tr>
+          </thead>
+          <tbody id="errorSummaryBody">
+            <!-- Built by JS from validationErrors -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if summary.warnings %}
+    <div class="card">
+      <div style="padding: 12px; background: #fff3cd; border-radius: 6px;">
+        <h3 style="color: #856404;">Warnings ({{ summary.warnings|length }})</h3>
+        <table class="error-summary-table warning-summary-table" id="warningSummaryTable" style="margin-top: 8px;">
+          <thead>
+            <tr style="background: #fff3cd;">
+              <th style="background: #fff3cd; color: #856404;"></th>
+              <th style="background: #fff3cd; color: #856404;">Warning Type</th>
+              <th style="background: #fff3cd; color: #856404;">Count</th>
+            </tr>
+          </thead>
+          <tbody id="warningSummaryBody">
+            <!-- Built by JS from warnings -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
 
     {% else %}
     <!-- EMPTY STATE -->
@@ -728,6 +766,7 @@
     // ===== ROW DATA (from Jinja) =====
     const rowData = {{ rows | tojson }};
     const validationErrors = {{ summary.validation_errors | tojson }};
+    const warnings = {{ summary.warnings | tojson }};
 
     // ===== PLACEMENT SUMMARY: AGGREGATE BY TRAY CONFIG =====
     (function buildPlacementSummary() {
@@ -976,6 +1015,64 @@
         let tableHtml = '<table><thead><tr><th>SKU</th><th>Check</th><th>Message</th></tr></thead><tbody>';
         g.errors.forEach(e => {
           tableHtml += `<tr><td><strong>${e.sku_id}</strong></td><td>${e.check}</td><td>${e.message}</td></tr>`;
+        });
+        tableHtml += '</tbody></table>';
+        detailDiv.innerHTML = tableHtml;
+
+        detailTd.appendChild(detailDiv);
+        detailTr.appendChild(detailTd);
+        tbody.appendChild(detailTr);
+
+        // Toggle
+        summaryTr.addEventListener("click", () => {
+          summaryTr.classList.toggle("open");
+          detailTr.classList.toggle("open");
+        });
+      });
+    })();
+
+    // ===== WARNING SUMMARY: GROUP BY WARNING TYPE =====
+    (function buildWarningSummary() {
+      if (!warnings || warnings.length === 0) return;
+
+      const groups = {};
+      warnings.forEach(w => {
+        const key = w.type;
+        if (!groups[key]) {
+          groups[key] = { type: w.type, warnings: [] };
+        }
+        groups[key].warnings.push(w);
+      });
+
+      const sortedKeys = Object.keys(groups).sort();
+      const tbody = document.getElementById("warningSummaryBody");
+      if (!tbody) return;
+
+      sortedKeys.forEach(key => {
+        const g = groups[key];
+
+        // Level 1: Warning summary row
+        const summaryTr = document.createElement("tr");
+        summaryTr.className = "warning-summary-row";
+        summaryTr.innerHTML = `
+          <td><span class="arrow">&#9654;</span></td>
+          <td>${g.type}</td>
+          <td><strong>${g.warnings.length}</strong></td>
+        `;
+        tbody.appendChild(summaryTr);
+
+        // Level 2: Warning detail panel
+        const detailTr = document.createElement("tr");
+        detailTr.className = "warning-detail-panel";
+        const detailTd = document.createElement("td");
+        detailTd.colSpan = 3;
+
+        const detailDiv = document.createElement("div");
+        detailDiv.className = "warning-detail-inner";
+
+        let tableHtml = '<table><thead><tr><th>Type</th><th>Message</th></tr></thead><tbody>';
+        g.warnings.forEach(w => {
+          tableHtml += `<tr><td><strong>${w.type}</strong></td><td>${w.message}</td></tr>`;
         });
         tableHtml += '</tbody></table>';
         detailDiv.innerHTML = tableHtml;
