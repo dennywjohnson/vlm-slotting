@@ -1,18 +1,23 @@
 """
-Generate 500 sample SKUs with assigned Tray Configurations and Pick Priority.
+Generate 500 warehouse SKUs with assigned Tray Configurations and Pick Priority.
 
-KEY CHANGES FROM PREVIOUS VERSION:
-  - Each SKU specifies its Tray_Config (1-4) based on item size
-  - Each SKU gets a Pick_Priority (1 thru N) within its config group,
-    ranked by Weekly_Picks descending — this drives cell assignment
-  - Dimensions are generated to fit within the assigned config's
-    cell width, tray height, and effective cell volume
+REALISTIC WAREHOUSE DISTRIBUTION:
+  - Most SKUs are slow movers (0 weekly picks) — typical of a VLM storing
+    maintenance spares, repair parts, and low-velocity inventory
+  - Per tray config: max 20 picks/week, only 5 SKUs at that peak,
+    2 SKUs at each level 1-19, rest are zero-pick storage items
 
-TRAY CONFIG REFERENCE (default settings):
-  Config 4 (30-cell): cell width ~2.1", height 6",  tiny parts
-  Config 3 (16-cell): cell width ~4.4", height 12", small parts
-  Config 2  (8-cell): cell width ~9.3", height 18", medium parts
-  Config 1  (6-cell): cell width ~12.6", height 24", large parts
+TRAY CONFIG REFERENCE (matches slotting.py configs 1-8):
+  2" height trays (flat/thin items):
+    Config 1  (6-cell):  cell width ~12.6"  — large flat (plates, panels)
+    Config 2  (8-cell):  cell width ~9.3"   — medium flat (PCBs, brackets)
+    Config 3  (16-cell): cell width ~4.4"   — small flat (clips, clamps)
+    Config 4  (30-cell): cell width ~2.1"   — tiny flat (washers, O-rings)
+  4" height trays (standard items):
+    Config 5  (6-cell):  cell width ~12.6"  — large (motors, pumps)
+    Config 6  (8-cell):  cell width ~9.3"   — medium (valves, filters)
+    Config 7  (16-cell): cell width ~4.4"   — small (sensors, relays)
+    Config 8  (30-cell): cell width ~2.1"   — tiny (bearings, fuses)
 """
 
 import csv
@@ -31,10 +36,14 @@ DIVIDER_WIDTH = 0.5
 ITEM_CLEARANCE = 0.25
 
 CONFIG_DEFS = {
-    4: {"cells": 30, "height": 6.0,  "height_tol": 10, "fill_pct": 85},
-    3: {"cells": 16, "height": 12.0, "height_tol": 10, "fill_pct": 85},
-    2: {"cells": 8,  "height": 18.0, "height_tol": 10, "fill_pct": 85},
-    1: {"cells": 6,  "height": 24.0, "height_tol": 10, "fill_pct": 85},
+    1: {"cells": 6,  "height": 2.0, "height_tol": 10, "fill_pct": 85},
+    2: {"cells": 8,  "height": 2.0, "height_tol": 10, "fill_pct": 85},
+    3: {"cells": 16, "height": 2.0, "height_tol": 10, "fill_pct": 85},
+    4: {"cells": 30, "height": 2.0, "height_tol": 10, "fill_pct": 85},
+    5: {"cells": 6,  "height": 4.0, "height_tol": 10, "fill_pct": 85},
+    6: {"cells": 8,  "height": 4.0, "height_tol": 10, "fill_pct": 85},
+    7: {"cells": 16, "height": 4.0, "height_tol": 10, "fill_pct": 85},
+    8: {"cells": 30, "height": 4.0, "height_tol": 10, "fill_pct": 85},
 }
 
 
@@ -51,35 +60,123 @@ def _effective_cell_volume(cells: int, height: float, fill_pct: int) -> float:
 
 
 # --------------------------------------------------------------------------
-# PART CATEGORIES — one per tray config
+# PART CATEGORIES — one per tray config (8 total)
 # --------------------------------------------------------------------------
-# Each category generates items that physically fit their assigned config.
-#
-# "narrow" = the item dimension that goes across the cell width (must fit)
-# "wide"   = the item dimension that goes front-to-back (tray depth)
-# These get randomly assigned as Width_in / Length_in in the CSV.
+# "narrow" = dimension across cell width (must fit)
+# "wide"   = dimension front-to-back (tray depth)
+# Randomly assigned as Width_in / Length_in in the CSV.
 # --------------------------------------------------------------------------
 CATEGORIES = [
-    # CONFIG 4 (30-cell) — tiny parts: bearings, o-rings, fuses, fasteners
+    # --- 2" HEIGHT TRAYS (flat/thin items) ---
+
+    # CONFIG 1 (6-cell, 2") — large flat: plates, panels, shields
+    {
+        "config": 1,
+        "descriptions": [
+            "Steel Cover Plate", "Access Panel", "Mounting Plate",
+            "Sheet Metal Blank", "Base Plate", "Wear Plate",
+            "Back Panel", "Side Panel", "Floor Plate",
+            "Heat Shield", "Drip Tray", "Splash Guard",
+            "Machine Guard", "Inspection Cover", "Door Panel",
+        ],
+        "narrow": (5.0, 11.5),
+        "wide":   (5.0, 20.0),
+        "height": (0.3, 1.8),
+        "weight": (1.0, 15.0),
+        "eaches_range": (1, 3),
+        "count": 63,
+    },
+    # CONFIG 2 (8-cell, 2") — medium flat: PCBs, brackets, shims
+    {
+        "config": 2,
+        "descriptions": [
+            "Control Board", "Relay Board", "PCB Assembly",
+            "Mounting Bracket", "Angle Bracket", "U-Bracket",
+            "Shim Pack 0.010", "Shim Pack 0.020", "Shim Pack 0.050",
+            "Backing Plate", "Adapter Plate", "Wear Strip",
+            "Gasket Sheet", "Cork Gasket", "Rubber Mat",
+        ],
+        "narrow": (3.0, 8.5),
+        "wide":   (3.0, 16.0),
+        "height": (0.2, 1.8),
+        "weight": (0.3, 8.0),
+        "eaches_range": (1, 5),
+        "count": 63,
+    },
+    # CONFIG 3 (16-cell, 2") — small flat: clips, clamps, labels
+    {
+        "config": 3,
+        "descriptions": [
+            "Hose Clamp", "Cable Clip", "P-Clip",
+            "Name Plate", "Warning Label", "ID Tag",
+            "Flat Washer Kit", "Lock Washer Kit", "Wave Washer Kit",
+            "Shim Washer", "Spacer Plate", "Retainer Clip",
+            "Contact Tip", "Brush Plate", "Brake Pad",
+        ],
+        "narrow": (1.0, 3.5),
+        "wide":   (1.0, 8.0),
+        "height": (0.1, 1.8),
+        "weight": (0.05, 2.0),
+        "eaches_range": (3, 20),
+        "count": 63,
+    },
+    # CONFIG 4 (30-cell, 2") — tiny flat: washers, O-rings, spacers
     {
         "config": 4,
         "descriptions": [
-            "Ball Bearing", "Sealed Bearing", "Thrust Bearing",
-            "O-Ring Kit", "Shaft Seal", "Lip Seal",
-            "Fuse 10A", "Fuse 15A", "Fuse 30A",
-            "Dowel Pin Set", "Cotter Pin Kit", "Retaining Ring Kit",
-            "Set Screw Pack", "Spring Pin Kit", "Snap Ring Kit",
+            "O-Ring", "Flat Washer", "Thrust Washer",
+            "Spacer 1/8", "Spacer 1/4", "Spacer 1/2",
+            "Felt Seal", "Backup Ring", "Wiper Seal",
+            "Shim 0.005", "Shim 0.010", "Shim 0.015",
+            "Wave Spring", "Snap Ring", "E-Clip",
         ],
         "narrow": (0.3, 1.5),
         "wide":   (0.3, 4.0),
-        "height": (0.3, 5.5),
+        "height": (0.1, 1.8),
         "weight": (0.01, 0.5),
         "eaches_range": (10, 100),
-        "count": 150,
+        "count": 63,
     },
-    # CONFIG 3 (16-cell) — small parts: sensors, switches, relays
+
+    # --- 4" HEIGHT TRAYS (standard items) ---
+
+    # CONFIG 5 (6-cell, 4") — large: motors, pumps, gearboxes
     {
-        "config": 3,
+        "config": 5,
+        "descriptions": [
+            "AC Motor 1HP", "DC Motor 1/2HP", "Gear Motor",
+            "Gear Pump", "Centrifugal Pump", "Diaphragm Pump",
+            "Gearbox 10:1", "Gearbox 20:1", "Speed Reducer",
+            "Cylinder 2in Bore", "Cylinder 3in Bore", "Cylinder 4in Bore",
+            "VFD 2HP", "Servo Drive", "Heat Exchanger",
+        ],
+        "narrow": (5.0, 11.5),
+        "wide":   (5.0, 20.0),
+        "height": (2.0, 3.8),
+        "weight": (2.0, 30.0),
+        "eaches_range": (1, 3),
+        "count": 62,
+    },
+    # CONFIG 6 (8-cell, 4") — medium: valves, filters, PLCs
+    {
+        "config": 6,
+        "descriptions": [
+            "Hydraulic Filter", "Oil Filter", "Air Filter Cartridge",
+            "Ball Valve 1in", "Gate Valve 1in", "Check Valve 3/4in",
+            "Solenoid Valve 24V", "Pressure Regulator", "Flow Control Valve",
+            "PLC Module", "I/O Card", "Power Supply 24V",
+            "Coupling Insert", "Shaft Coupling", "Flex Coupling",
+        ],
+        "narrow": (3.0, 8.5),
+        "wide":   (3.0, 16.0),
+        "height": (1.5, 3.8),
+        "weight": (0.5, 12.0),
+        "eaches_range": (1, 8),
+        "count": 62,
+    },
+    # CONFIG 7 (16-cell, 4") — small: sensors, relays, switches
+    {
+        "config": 7,
         "descriptions": [
             "Proximity Sensor", "Temp Sensor", "Pressure Transducer",
             "Limit Switch", "Toggle Switch", "Rocker Switch",
@@ -89,70 +186,68 @@ CATEGORIES = [
         ],
         "narrow": (1.0, 3.5),
         "wide":   (1.0, 8.0),
-        "height": (1.0, 11.0),
+        "height": (1.0, 3.8),
         "weight": (0.1, 3.0),
-        "eaches_range": (3, 30),
-        "count": 120,
+        "eaches_range": (2, 20),
+        "count": 62,
     },
-    # CONFIG 2 (8-cell) — medium parts: filters, valves, PLCs
+    # CONFIG 8 (30-cell, 4") — tiny: bearings, fuses, pins
     {
-        "config": 2,
+        "config": 8,
         "descriptions": [
-            "Hydraulic Filter", "Oil Filter Element", "Air Filter Cartridge",
-            "Gasket Set", "Flange Gasket", "Head Gasket",
-            "Ball Valve 1in", "Gate Valve 1in", "Check Valve 3/4in",
-            "Solenoid Valve 24V", "Pressure Regulator", "Flow Control Valve",
-            "PLC Module", "I/O Card", "Power Supply 24V",
+            "Ball Bearing", "Sealed Bearing", "Thrust Bearing",
+            "Fuse 10A", "Fuse 15A", "Fuse 30A",
+            "Dowel Pin Set", "Cotter Pin Kit", "Retaining Ring Kit",
+            "Set Screw Pack", "Spring Pin Kit", "Roll Pin Kit",
+            "Wire Ferrule", "Crimp Terminal", "Butt Splice",
         ],
-        "narrow": (3.0, 8.5),
-        "wide":   (3.0, 16.0),
-        "height": (2.0, 16.0),
-        "weight": (0.5, 15.0),
-        "eaches_range": (1, 15),
-        "count": 130,
-    },
-    # CONFIG 1 (6-cell) — large parts: motors, pumps, gearboxes
-    {
-        "config": 1,
-        "descriptions": [
-            "AC Motor 1HP", "AC Motor 2HP", "DC Motor 1/2HP",
-            "Gear Pump", "Centrifugal Pump", "Diaphragm Pump",
-            "Gearbox 10:1", "Gearbox 20:1", "Speed Reducer",
-            "Cylinder 2in Bore", "Cylinder 3in Bore", "Cylinder 4in Bore",
-            "VFD 2HP", "Servo Drive", "Heat Exchanger",
-        ],
-        "narrow": (5.0, 11.5),
-        "wide":   (5.0, 20.0),
-        "height": (4.0, 22.0),
-        "weight": (5.0, 65.0),
-        "eaches_range": (1, 5),
-        "count": 100,
+        "narrow": (0.3, 1.5),
+        "wide":   (0.3, 4.0),
+        "height": (0.3, 3.8),
+        "weight": (0.01, 0.5),
+        "eaches_range": (5, 50),
+        "count": 62,
     },
 ]
+
+
+# --------------------------------------------------------------------------
+# WEEKLY PICK DISTRIBUTION (realistic slow-moving warehouse)
+# --------------------------------------------------------------------------
+
+def assign_weekly_picks(group: list[dict]) -> None:
+    """
+    Assign Weekly_Picks to a config group using a realistic warehouse
+    distribution.  Most items in a VLM are slow movers.
+
+    Per config group:
+      - 5 SKUs get 20 picks/week  (the hot movers)
+      - 2 SKUs each at 19, 18, 17, ... 1 picks/week
+      - All remaining SKUs get 0  (bulk of the inventory)
+
+    Total non-zero per group: 5 + (19 * 2) = 43
+    """
+    # Build the pick values list
+    picks = [20] * 5
+    for p in range(19, 0, -1):
+        picks.extend([p] * 2)
+    # Fill remaining slots with 0
+    remaining = len(group) - len(picks)
+    picks.extend([0] * remaining)
+
+    # Shuffle so the non-zero picks aren't clustered by SKU number
+    random.shuffle(picks)
+
+    for sku, weekly in zip(group, picks):
+        sku["Weekly_Picks"] = weekly
 
 
 # --------------------------------------------------------------------------
 # GENERATION
 # --------------------------------------------------------------------------
 
-def generate_weekly_picks() -> int:
-    """
-    Right-skewed distribution (Pareto pattern).
-    ~50% get 0-2 picks, ~25% get 2-4, ~15% get 4-7, ~10% get 7-10.
-    """
-    r = random.random()
-    if r < 0.50:
-        return random.randint(0, 2)
-    elif r < 0.75:
-        return random.randint(2, 4)
-    elif r < 0.90:
-        return random.randint(4, 7)
-    else:
-        return random.randint(7, 10)
-
-
 def generate_skus() -> list[dict]:
-    """Build 500 SKUs with Tray_Config and Pick_Priority."""
+    """Build 500 warehouse SKUs with Tray_Config and Pick_Priority."""
     skus = []
     sku_num = 1
     usable_depth = TRAY_DEPTH - 2 * ITEM_CLEARANCE
@@ -193,7 +288,7 @@ def generate_skus() -> list[dict]:
                 "Height_in": height,
                 "Weight_lbs": weight,
                 "Eaches": eaches,
-                "Weekly_Picks": generate_weekly_picks(),
+                "Weekly_Picks": 0,  # assigned below by config group
                 "Tray_Config": cat["config"],
             })
             sku_num += 1
@@ -201,13 +296,17 @@ def generate_skus() -> list[dict]:
     # Shuffle so the CSV isn't grouped by category
     random.shuffle(skus)
 
-    # ---- ASSIGN PICK PRIORITY ----
-    # Group by Tray_Config, sort by Weekly_Picks descending within each group,
-    # then assign Pick_Priority 1, 2, 3... (1 = fastest mover in that config).
+    # ---- ASSIGN WEEKLY PICKS per config group ----
     config_groups: dict[int, list[dict]] = {}
     for s in skus:
         config_groups.setdefault(s["Tray_Config"], []).append(s)
 
+    for group in config_groups.values():
+        assign_weekly_picks(group)
+
+    # ---- ASSIGN PICK PRIORITY ----
+    # Sort by Weekly_Picks descending within each config group,
+    # then assign Pick_Priority 1, 2, 3... (1 = fastest mover).
     for group in config_groups.values():
         group.sort(key=lambda s: (-s["Weekly_Picks"], s["SKU"]))
         for i, s in enumerate(group):
@@ -223,7 +322,7 @@ def generate_skus() -> list[dict]:
 def main():
     skus = generate_skus()
 
-    output_file = "sample_skus.csv"
+    output_file = "warehouse_skus.csv"
     fieldnames = [
         "SKU", "Description", "Length_in", "Width_in", "Height_in",
         "Weight_lbs", "Eaches", "Weekly_Picks", "Tray_Config", "Pick_Priority",
@@ -244,17 +343,24 @@ def main():
     for config_num in sorted(config_groups):
         group = config_groups[config_num]
         picks = [s["Weekly_Picks"] for s in group]
-        print(f"  Config {config_num}: {len(group)} SKUs, "
-              f"picks {min(picks)}-{max(picks)}/wk, "
-              f"top pick priority = 1..{len(group)}")
+        non_zero = sum(1 for p in picks if p > 0)
+        print(f"  Config {config_num}: {len(group):3d} SKUs, "
+              f"picks 0-{max(picks)}/wk, "
+              f"{non_zero} active / {len(group) - non_zero} zero-pick")
 
-    # Pick distribution
+    # Pick distribution across all SKUs
     print("\nWeekly Picks distribution:")
     pick_counts = [s["Weekly_Picks"] for s in skus]
-    for p in range(11):
+    for p in range(21):
         count = pick_counts.count(p)
         bar = "#" * count
         print(f"  {p:2d} picks: {count:3d} SKUs  {bar}")
+
+    total_picks = sum(pick_counts)
+    zero_count = pick_counts.count(0)
+    print(f"\n  Total weekly picks: {total_picks}")
+    print(f"  Zero-pick SKUs: {zero_count} / {len(skus)} "
+          f"({100 * zero_count / len(skus):.0f}%)")
 
 
 if __name__ == "__main__":

@@ -62,8 +62,8 @@ CONFIG_FIELDS_PRE = [
     {"key": "tray_width",        "label": "Tray Width (in)",            "type": "float", "group": "Tray Dimensions"},
     {"key": "tray_depth",        "label": "Tray Depth (in)",            "type": "float", "group": "Tray Dimensions"},
     {"key": "tray_max_weight",   "label": "Max Weight per Tray (lbs)",  "type": "float", "group": "Tray Dimensions"},
-    {"key": "golden_zone_start", "label": "Golden Zone Start (tray #)", "type": "int",   "group": "Golden Zone"},
-    {"key": "golden_zone_end",   "label": "Golden Zone End (tray #)",   "type": "int",   "group": "Golden Zone"},
+    {"key": "golden_zone_pct",   "label": "Golden Zone (% of total picks)", "type": "int", "group": "Zone Thresholds"},
+    {"key": "silver_zone_pct",   "label": "Silver Zone (% of total picks)", "type": "int", "group": "Zone Thresholds"},
 ]
 
 CONFIG_FIELDS_POST = [
@@ -179,11 +179,14 @@ def run():
     cfg = parse_config_from_form(request.form)
 
     # Basic validation
-    if cfg["golden_zone_start"] > cfg["golden_zone_end"]:
-        flash("Golden Zone Start must be <= Golden Zone End.", "error")
+    if not (1 <= cfg["golden_zone_pct"] <= 100):
+        flash("Golden Zone % must be between 1 and 100.", "error")
         return redirect(url_for("index"))
-    if cfg["golden_zone_end"] > cfg["trays_per_tower"]:
-        flash("Golden Zone End can't exceed Trays per Tower.", "error")
+    if not (1 <= cfg["silver_zone_pct"] <= 100):
+        flash("Silver Zone % must be between 1 and 100.", "error")
+        return redirect(url_for("index"))
+    if cfg["silver_zone_pct"] <= cfg["golden_zone_pct"]:
+        flash("Silver Zone % must be greater than Golden Zone %.", "error")
         return redirect(url_for("index"))
 
     # Save config for next page load (so the form remembers your values)

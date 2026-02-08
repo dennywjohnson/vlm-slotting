@@ -65,9 +65,9 @@ def default_config() -> dict:
         # Weight
         "tray_max_weight": 750.0,  # lbs per tray (all cells combined)
 
-        # Golden zone
-        "golden_zone_start": 20,
-        "golden_zone_end": 35,
+        # Zone thresholds (% of total picks — top trays by picks/week)
+        "golden_zone_pct": 30,
+        "silver_zone_pct": 50,
 
         # How many tray configurations are defined (keys below)
         "num_tray_configs": 12,
@@ -348,15 +348,17 @@ def config_letter(config_num: int) -> str:
     return "?"
 
 
-def build_bin_label(zone: str, tower: int, physical_tray: int,
+def build_bin_label(zone: str, physical_tray: int,
                     config_num: int, cell_index: int) -> str:
     """
     Build an 8-character BIN LABEL for a cell.
 
-    Format: Zone(1) + Tower(1) + Tray(3) + ConfigLetter(1) + Cell(2)
-    Example: V1002B01 = Zone V, Tower 1, Tray 002, Config 2, Cell 01
+    Format: Zone(1) + Tray(4) + ConfigLetter(1) + Cell(2)
+    Example: V1002B01 = Zone V, Tray 1002 (Tower 1), Config B, Cell 01
+
+    Tray numbers encode the tower: 1xxx = Tower 1, 2xxx = Tower 2, etc.
     """
-    return f"{zone}{tower}{physical_tray:03d}{config_letter(config_num)}{cell_index:02d}"
+    return f"{zone}{physical_tray:04d}{config_letter(config_num)}{cell_index:02d}"
 
 
 def compute_cell_location(pick_priority: int, num_towers: int,
@@ -390,17 +392,14 @@ def assign_physical_trays(skus: list[SKU], cfg: dict) -> dict:
     Strategy:
       1. Each config gets trays proportional to its need, capped to fit
          the available trays per tower so all configs get a fair share.
-      2. Configs with the highest total picks get golden zone positions
-         (assigned from the golden zone center spiraling outward).
+      2. Highest-pick configs get the lowest tray numbers (the VLM will
+         re-sort trays dynamically based on actual pick data).
 
     Returns: {(tower, config_num, config_tray): physical_tray_num}
     """
     tray_configs = get_tray_configs(cfg)
     num_towers = cfg["num_towers"]
     trays_per_tower = cfg["trays_per_tower"]
-    golden_start = cfg["golden_zone_start"]
-    golden_end = cfg["golden_zone_end"]
-    golden_mid = (golden_start + golden_end) / 2
 
     # Count trays needed per config (max config_tray across all SKUs)
     config_trays_needed: dict[int, int] = {}
@@ -428,34 +427,31 @@ def assign_physical_trays(skus: list[SKU], cfg: dict) -> dict:
     else:
         config_trays_alloc = dict(config_trays_needed)
 
-    # Calculate total picks per config (for golden zone priority)
+    # Calculate total picks per config (for assignment priority)
     config_picks: dict[int, int] = {}
     for sku in skus:
         config_picks[sku.tray_config] = (
             config_picks.get(sku.tray_config, 0) + sku.weekly_picks
         )
 
-    # Sort configs by total picks descending (highest gets golden zone)
+    # Sort configs by total picks descending (highest gets first positions)
     sorted_configs = sorted(
         config_trays_alloc.keys(),
         key=lambda c: config_picks.get(c, 0),
         reverse=True,
     )
 
-    # Generate tray positions spiraling out from golden zone center
-    all_positions = list(range(1, trays_per_tower + 1))
-    all_positions.sort(key=lambda p: abs(p - golden_mid))
-
-    # Assign physical positions per tower
+    # Assign physical positions sequentially per tower
+    # Tray numbers encode the tower: Tower 1 = 1001+, Tower 2 = 2001+, etc.
     tray_map = {}
     for tower in range(1, num_towers + 1):
-        pos_idx = 0
+        pos = 1
         for config_num in sorted_configs:
             trays_for_config = config_trays_alloc[config_num]
             for ct in range(1, trays_for_config + 1):
-                if pos_idx < len(all_positions):
-                    tray_map[(tower, config_num, ct)] = all_positions[pos_idx]
-                    pos_idx += 1
+                if pos <= trays_per_tower:
+                    tray_map[(tower, config_num, ct)] = tower * 1000 + pos
+                    pos += 1
 
     return tray_map
 
@@ -502,11 +498,6 @@ def slot_skus(skus: list[SKU], cfg: dict) -> tuple[list[dict], list[dict]]:
         tray_key = (loc["tower"], physical_tray)
         tray_weights[tray_key] = tray_weights.get(tray_key, 0) + sku.cell_weight
 
-        # Determine zone
-        golden_start = cfg["golden_zone_start"]
-        golden_end = cfg["golden_zone_end"]
-        zone = "Golden" if golden_start <= physical_tray <= golden_end else "Standard"
-
         # Cell volume calculations
         cell_w = compute_cell_width(
             cfg["tray_width"], tc["cells"], cfg["divider_width"]
@@ -516,7 +507,7 @@ def slot_skus(skus: list[SKU], cfg: dict) -> tuple[list[dict], list[dict]]:
 
         # Build BIN LABEL: Zone + Tower + Tray(3) + Config Letter + Cell(2)
         bin_label = build_bin_label(
-            cfg["zone"], loc["tower"], physical_tray,
+            cfg["zone"], physical_tray,
             sku.tray_config, loc["cell_index"],
         )
 
@@ -540,7 +531,8 @@ def slot_skus(skus: list[SKU], cfg: dict) -> tuple[list[dict], list[dict]]:
             "SKU_Vol_in3": round(sku.sku_volume, 1),
             "Total_Vol_in3": round(sku.total_volume, 1),
             "Cell_Vol_in3": round(cell_vol, 1),
-            "Tray_Zone": zone,
+            "Fill_Pct": round(sku.total_volume / cell_vol * 100, 1) if cell_vol else 0,
+            "Tray_Zone": "Standard",  # updated below by pick-based golden zone
         })
 
     # Check tray weight limits
@@ -553,6 +545,46 @@ def slot_skus(skus: list[SKU], cfg: dict) -> tuple[list[dict], list[dict]]:
                             f"{total_wt:.1f} lbs exceeds limit "
                             f"of {cfg['tray_max_weight']} lbs"),
             })
+
+    # ---- ZONE ASSIGNMENT: mark trays by pick density ----
+    # Golden = top trays up to golden_zone_pct% of total picks
+    # Silver = next trays from golden_zone_pct% to silver_zone_pct%
+    # Standard = remaining trays with picks
+    # Slow Mover = individual SKUs with 0 weekly picks (overrides tray zone)
+    tray_picks: dict[tuple, int] = {}
+    for r in rows:
+        tk = (r["Tower"], r["Tray"])
+        tray_picks[tk] = tray_picks.get(tk, 0) + r["Weekly_Picks"]
+
+    total_picks = sum(tray_picks.values())
+    golden_limit = total_picks * cfg["golden_zone_pct"] / 100
+    silver_limit = total_picks * cfg["silver_zone_pct"] / 100
+
+    # Sort trays by picks descending
+    sorted_trays = sorted(tray_picks.items(), key=lambda x: -x[1])
+
+    golden_trays = set()
+    silver_trays = set()
+    accumulated = 0
+    for tray_key, picks in sorted_trays:
+        if picks == 0:
+            break
+        if accumulated + picks <= golden_limit:
+            golden_trays.add(tray_key)
+        elif accumulated + picks <= silver_limit:
+            silver_trays.add(tray_key)
+        accumulated += picks
+
+    for r in rows:
+        tk = (r["Tower"], r["Tray"])
+        if r["Weekly_Picks"] == 0:
+            r["Tray_Zone"] = "Slow Mover"
+        elif tk in golden_trays:
+            r["Tray_Zone"] = "Golden"
+        elif tk in silver_trays:
+            r["Tray_Zone"] = "Silver"
+        else:
+            r["Tray_Zone"] = "Standard"
 
     rows.sort(key=lambda r: (r["Tower"], r["Tray"], r["Cell"]))
     return rows, warnings
@@ -573,7 +605,7 @@ def write_slotting_map(rows: list[dict], output_path: str):
         "Pick_Priority", "Weekly_Picks", "Eaches",
         "Weight_Each_lbs", "Cell_Weight_lbs",
         "Length_in", "Width_in", "Height_in",
-        "SKU_Vol_in3", "Total_Vol_in3", "Cell_Vol_in3",
+        "SKU_Vol_in3", "Total_Vol_in3", "Cell_Vol_in3", "Fill_Pct",
         "Tray_Zone",
     ]
 
@@ -601,6 +633,12 @@ def build_summary(rows: list[dict], warnings: list[dict],
             "golden_items": sum(
                 1 for r in tower_rows if r["Tray_Zone"] == "Golden"
             ),
+            "silver_items": sum(
+                1 for r in tower_rows if r["Tray_Zone"] == "Silver"
+            ),
+            "slow_mover_items": sum(
+                1 for r in tower_rows if r["Tray_Zone"] == "Slow Mover"
+            ),
             "weight": round(
                 sum(r["Cell_Weight_lbs"] for r in tower_rows), 1
             ),
@@ -610,6 +648,9 @@ def build_summary(rows: list[dict], warnings: list[dict],
     all_trays = set((r["Tower"], r["Tray"]) for r in rows)
     golden_rows = [r for r in rows if r["Tray_Zone"] == "Golden"]
     golden_picks = sum(r["Weekly_Picks"] for r in golden_rows)
+    silver_rows = [r for r in rows if r["Tray_Zone"] == "Silver"]
+    silver_picks = sum(r["Weekly_Picks"] for r in silver_rows)
+    slow_mover_count = sum(1 for r in rows if r["Tray_Zone"] == "Slow Mover")
     total_picks = sum(r["Weekly_Picks"] for r in rows)
 
     # Config usage
@@ -617,7 +658,8 @@ def build_summary(rows: list[dict], warnings: list[dict],
     for r in rows:
         key = r["Tray_Config"]
         if key not in config_usage:
-            config_usage[key] = {"trays": set(), "items": 0}
+            config_usage[key] = {"trays": set(), "items": 0,
+                                 "cell_vol": r["Cell_Vol_in3"]}
         config_usage[key]["trays"].add((r["Tower"], r["Tray"]))
         config_usage[key]["items"] += 1
     # Convert sets to counts
@@ -625,6 +667,7 @@ def build_summary(rows: list[dict], warnings: list[dict],
         config_usage[key] = {
             "trays": len(config_usage[key]["trays"]),
             "items": config_usage[key]["items"],
+            "cell_vol": config_usage[key]["cell_vol"],
         }
 
     # Tray weight stats
@@ -650,6 +693,11 @@ def build_summary(rows: list[dict], warnings: list[dict],
         "golden_pct": round(
             golden_picks / total_picks * 100, 1
         ) if total_picks else 0,
+        "silver_picks": silver_picks,
+        "silver_pct": round(
+            silver_picks / total_picks * 100, 1
+        ) if total_picks else 0,
+        "slow_mover_count": slow_mover_count,
         "heaviest_tray": round(heaviest, 1),
         "avg_tray_weight": round(avg_wt, 1),
         "weight_limit": cfg["tray_max_weight"],
@@ -680,13 +728,18 @@ def print_summary(rows: list[dict], warnings: list[dict],
         print(f"  Tower {t['tower']}:")
         print(f"    Trays used:     {t['trays_used']}")
         print(f"    Items stored:   {t['items']}")
-        print(f"    Golden zone:    {t['golden_items']} items")
+        print(f"    Golden:         {t['golden_items']} items")
+        print(f"    Silver:         {t['silver_items']} items")
+        print(f"    Slow Movers:    {t['slow_mover_items']} items")
         print(f"    Total weight:   {t['weight']} lbs")
         print()
 
     if s["total_picks"] > 0:
-        print(f"  Golden zone pick coverage: {s['golden_picks']}/{s['total_picks']}"
+        print(f"  Golden zone: {s['golden_picks']}/{s['total_picks']}"
               f" weekly picks ({s['golden_pct']}%)")
+        print(f"  Silver zone: {s['silver_picks']}/{s['total_picks']}"
+              f" weekly picks ({s['silver_pct']}%)")
+    print(f"  Slow Movers: {s['slow_mover_count']} SKUs (0 picks/week)")
     print()
     print(f"  Avg tray weight:  {s['avg_tray_weight']} lbs")
     print(f"  Heaviest tray:    {s['heaviest_tray']} lbs"
