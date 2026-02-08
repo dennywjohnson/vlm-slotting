@@ -58,7 +58,19 @@ latest_results = {
 CONFIG_FIELDS_PRE = [
     {"key": "zone",              "label": "Zone Label (1 char)",        "type": "str",   "group": "Machine Layout"},
     {"key": "num_towers",        "label": "Number of Towers",           "type": "int",   "group": "Machine Layout"},
-    {"key": "trays_per_tower",   "label": "Trays per Tower",            "type": "int",   "group": "Machine Layout"},
+    {"key": "trays_per_tower",   "label": "Trays per Tower (total)",    "type": "readonly", "group": "Machine Layout"},
+    {"key": "slots_per_tower",   "label": "Slots per Tower (total)",    "type": "readonly", "group": "Machine Layout"},
+    {"key": "slot_spacing",      "label": "Slot Spacing (in)",          "type": "float", "group": "Machine Layout"},
+    {"key": "reserved_slots",    "label": "Reserved Slots",             "type": "int",   "group": "Machine Layout"},
+    {"key": "tower_height_display", "label": "Total Tower Height",    "type": "readonly", "group": "Machine Layout"},
+    {"key": "trays_2in",         "label": "2\" Trays per Tower",        "type": "int",   "group": "Tray Inventory"},
+    {"key": "slots_per_2in_tray","label": "Slots per 2\" Tray",        "type": "int",   "group": "Tray Inventory"},
+    {"key": "trays_4in",         "label": "4\" Trays per Tower",        "type": "int",   "group": "Tray Inventory"},
+    {"key": "slots_per_4in_tray","label": "Slots per 4\" Tray",        "type": "int",   "group": "Tray Inventory"},
+    {"key": "trays_6in",         "label": "6\" Trays per Tower",        "type": "int",   "group": "Tray Inventory"},
+    {"key": "slots_per_6in_tray","label": "Slots per 6\" Tray",        "type": "int",   "group": "Tray Inventory"},
+    {"key": "trays_8in",         "label": "8\" Trays per Tower",        "type": "int",   "group": "Tray Inventory"},
+    {"key": "slots_per_8in_tray","label": "Slots per 8\" Tray",        "type": "int",   "group": "Tray Inventory"},
     {"key": "tray_width",        "label": "Tray Width (in)",            "type": "float", "group": "Tray Dimensions"},
     {"key": "tray_depth",        "label": "Tray Depth (in)",            "type": "float", "group": "Tray Dimensions"},
     {"key": "tray_max_weight",   "label": "Max Weight per Tray (lbs)",  "type": "float", "group": "Tray Dimensions"},
@@ -107,8 +119,10 @@ def parse_config_from_form(form) -> dict:
     """
     cfg = latest_results["config"].copy()
 
-    # Parse base fields
+    # Parse base fields (skip readonly computed fields)
     for field in CONFIG_FIELDS_PRE + CONFIG_FIELDS_POST:
+        if field["type"] == "readonly":
+            continue
         _parse_field(cfg, field["key"], field["type"], form.get(field["key"]))
 
     # Parse dynamic tray configs
@@ -140,6 +154,30 @@ def parse_config_from_form(form) -> dict:
 # ROUTES
 # --------------------------------------------------------------------------
 
+def _compute_derived_config(cfg):
+    """Compute all derived config values from tray inventory."""
+    # Total trays per tower
+    cfg["trays_per_tower"] = (
+        cfg.get("trays_2in", 0) + cfg.get("trays_4in", 0) +
+        cfg.get("trays_6in", 0) + cfg.get("trays_8in", 0)
+    )
+    # Total slots per tower (tray count × slots per tray for each height)
+    cfg["slots_per_tower"] = (
+        cfg.get("trays_2in", 0) * cfg.get("slots_per_2in_tray", 9) +
+        cfg.get("trays_4in", 0) * cfg.get("slots_per_4in_tray", 17) +
+        cfg.get("trays_6in", 0) * cfg.get("slots_per_6in_tray", 49) +
+        cfg.get("trays_8in", 0) * cfg.get("slots_per_8in_tray", 65)
+    )
+    # Tower height from slots × spacing
+    total_inches = cfg["slots_per_tower"] * cfg["slot_spacing"]
+    feet = int(total_inches // 12)
+    inches = round(total_inches % 12, 1)
+    if inches == 0:
+        cfg["tower_height_display"] = f"{feet}' 0\""
+    else:
+        cfg["tower_height_display"] = f"{feet}' {inches}\""
+
+
 @app.route("/")
 def index():
     """
@@ -147,6 +185,7 @@ def index():
     the latest slotting results with summary stats.
     """
     cfg = latest_results["config"]
+    _compute_derived_config(cfg)
     return render_template(
         "index.html",
         rows=latest_results["rows"],
@@ -195,6 +234,9 @@ def run():
     if cfg["bronze_zone_pct"] <= cfg["silver_zone_pct"]:
         flash("Bronze Zone % must be greater than Silver Zone %.", "error")
         return redirect(url_for("index"))
+
+    # Compute derived config values (trays_per_tower, slots_per_tower, tower height)
+    _compute_derived_config(cfg)
 
     # Save config for next page load (so the form remembers your values)
     latest_results["config"] = cfg

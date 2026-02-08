@@ -364,7 +364,10 @@
             {% endif %}
             <div class="config-field">
               <label for="{{ field.key }}">{{ field.label }}</label>
-              {% if field.type == 'str' %}
+              {% if field.type == 'readonly' %}
+              <input type="text" id="{{ field.key }}" value="{{ config[field.key] }}"
+                     readonly style="background: #e9ecef; border-color: #ddd; font-weight: 600;">
+              {% elif field.type == 'str' %}
               <input type="text" id="{{ field.key }}" name="{{ field.key }}"
                      value="{{ config[field.key] }}" maxlength="1"
                      style="text-transform: uppercase; width: 60px;">
@@ -538,10 +541,18 @@
         <div class="tower-card">
           <h3>Tower {{ t.tower }}</h3>
           <div class="tower-stat"><span>Trays used</span><span>{{ t.trays_used }}</span></div>
+          {% for inv in t.tray_inventory %}
+          <div class="tower-stat" style="padding-left: 12px; font-size: 0.8rem; color: #666;">
+            <span>{{ inv.height }}" trays</span>
+            <span>{{ inv.used }} / {{ inv.available }}</span>
+          </div>
+          {% endfor %}
           <div class="tower-stat"><span>Golden</span><span>{{ t.golden_items }}</span></div>
           <div class="tower-stat"><span>Silver</span><span>{{ t.silver_items }}</span></div>
           <div class="tower-stat"><span>Bronze</span><span>{{ t.bronze_items }}</span></div>
           <div class="tower-stat"><span>Slow Movers</span><span>{{ t.slow_mover_items }}</span></div>
+          <div class="tower-stat"><span>Stacked Height</span><span>{{ t.total_height }}"</span></div>
+          <div class="tower-stat"><span>Slots Used</span><span>{{ t.slots_used }} / {{ t.slots_available }} ({{ t.reserved_slots }} reserved)</span></div>
           <div class="tower-stat"><span>Weight</span><span>{{ t.weight }} lbs</span></div>
         </div>
         {% endfor %}
@@ -781,13 +792,51 @@
       updateVolumes();
     }
 
+    // ===== LIVE DERIVED CALCULATIONS =====
+    // Chain: tray inventory → trays_per_tower, slots_per_tower → tower_height
+    function updateDerivedConfig() {
+      const t2 = parseInt(document.getElementById("trays_2in")?.value) || 0;
+      const t4 = parseInt(document.getElementById("trays_4in")?.value) || 0;
+      const t6 = parseInt(document.getElementById("trays_6in")?.value) || 0;
+      const t8 = parseInt(document.getElementById("trays_8in")?.value) || 0;
+      const s2 = parseInt(document.getElementById("slots_per_2in_tray")?.value) || 0;
+      const s4 = parseInt(document.getElementById("slots_per_4in_tray")?.value) || 0;
+      const s6 = parseInt(document.getElementById("slots_per_6in_tray")?.value) || 0;
+      const s8 = parseInt(document.getElementById("slots_per_8in_tray")?.value) || 0;
+      const spacing = parseFloat(document.getElementById("slot_spacing")?.value) || 0;
+
+      // Trays per tower = sum of all height inventories
+      const traysEl = document.getElementById("trays_per_tower");
+      if (traysEl) traysEl.value = t2 + t4 + t6 + t8;
+
+      // Slots per tower = sum of (tray count × slots per tray) for each height
+      const totalSlots = (t2 * s2) + (t4 * s4) + (t6 * s6) + (t8 * s8);
+      const slotsEl = document.getElementById("slots_per_tower");
+      if (slotsEl) slotsEl.value = totalSlots;
+
+      // Tower height = total slots × slot spacing
+      const totalInches = totalSlots * spacing;
+      const feet = Math.floor(totalInches / 12);
+      const inches = Math.round((totalInches % 12) * 10) / 10;
+      const heightEl = document.getElementById("tower_height_display");
+      if (heightEl) heightEl.value = inches === 0 ? `${feet}' 0"` : `${feet}' ${inches}"`;
+    }
+
     // ===== INIT: attach listeners to existing sections + global fields =====
     document.querySelectorAll(".tray-config-section").forEach(attachVolumeListeners);
     ["tray_width", "tray_depth", "divider_width"].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.addEventListener("input", updateVolumes);
     });
+    // Tray inventory fields, slots-per-tray fields, and slot spacing all trigger recalc
+    ["trays_2in", "trays_4in", "trays_6in", "trays_8in",
+     "slots_per_2in_tray", "slots_per_4in_tray", "slots_per_6in_tray", "slots_per_8in_tray",
+     "slot_spacing"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener("input", updateDerivedConfig);
+    });
     updateVolumes();
+    updateDerivedConfig();
 
     {% if rows %}
     // ===== ROW DATA (from Jinja) =====

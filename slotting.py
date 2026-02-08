@@ -56,11 +56,28 @@ def default_config() -> dict:
         # Machine layout
         "zone": "V",              # single character zone label for BIN IDs
         "num_towers": 3,
-        "trays_per_tower": 50,
+        "trays_per_tower": 64,    # computed: sum of all height-specific trays
+
+        # Physical tray inventory by height (per tower, both sides combined)
+        "trays_2in": 32,          # 16 per side
+        "trays_4in": 32,          # 16 per side
+        "trays_6in": 0,
+        "trays_8in": 0,
+
+        # Slots consumed per tray by height (includes tray + clearance)
+        "slots_per_2in_tray": 9,
+        "slots_per_4in_tray": 17,
+        "slots_per_6in_tray": 49,
+        "slots_per_8in_tray": 65,
 
         # Tray physical dimensions (inches)
         "tray_width": 78.0,       # left-to-right (cells divide this)
         "tray_depth": 24.0,       # front-to-back
+
+        # Tower slot configuration
+        "slots_per_tower": 832,   # computed: (32*9)+(32*17)+(0*49)+(0*65)
+        "slot_spacing": 0.25,     # inches between each slot track
+        "reserved_slots": 10,     # slots reserved for tray shuffling (unusable)
 
         # Weight
         "tray_max_weight": 750.0,  # lbs per tray (all cells combined)
@@ -394,16 +411,25 @@ def assign_physical_trays(skus: list[SKU], cfg: dict) -> dict:
     Determine which physical tray positions each config occupies per tower.
 
     Strategy:
-      1. Each config gets trays proportional to its need, capped to fit
-         the available trays per tower so all configs get a fair share.
-      2. Highest-pick configs get the lowest tray numbers (the VLM will
-         re-sort trays dynamically based on actual pick data).
+      1. Group tray configs by their height (2", 4", 6", 8").
+      2. Each height group can only use trays from its matching inventory
+         pool (trays_2in, trays_4in, etc.).
+      3. Within each pool, configs are allocated proportionally to need,
+         capped to available trays, with highest-pick configs getting
+         the lowest tray numbers.
 
     Returns: {(tower, config_num, config_tray): physical_tray_num}
     """
     tray_configs = get_tray_configs(cfg)
     num_towers = cfg["num_towers"]
-    trays_per_tower = cfg["trays_per_tower"]
+
+    # Available trays per tower by height
+    tray_pools = {
+        2.0: cfg.get("trays_2in", 0),
+        4.0: cfg.get("trays_4in", 0),
+        6.0: cfg.get("trays_6in", 0),
+        8.0: cfg.get("trays_8in", 0),
+    }
 
     # Count trays needed per config (max config_tray across all SKUs)
     config_trays_needed: dict[int, int] = {}
@@ -417,44 +443,57 @@ def assign_physical_trays(skus: list[SKU], cfg: dict) -> dict:
             config_trays_needed.get(sku.tray_config, 0), loc["config_tray"]
         )
 
-    # Cap allocations so total fits within trays_per_tower
-    total_needed = sum(config_trays_needed.values())
-    if total_needed > trays_per_tower:
-        # Scale each config proportionally, ensuring at least 1 tray each
-        config_trays_alloc = {}
-        for cn, needed in config_trays_needed.items():
-            config_trays_alloc[cn] = max(1, round(needed * trays_per_tower / total_needed))
-        # Trim if rounding pushed over the limit
-        while sum(config_trays_alloc.values()) > trays_per_tower:
-            # Reduce the config with the most allocated trays
-            biggest = max(config_trays_alloc, key=config_trays_alloc.get)
-            config_trays_alloc[biggest] -= 1
-    else:
-        config_trays_alloc = dict(config_trays_needed)
-
-    # Calculate total picks per config (for assignment priority)
+    # Total picks per config (for priority ordering)
     config_picks: dict[int, int] = {}
     for sku in skus:
         config_picks[sku.tray_config] = (
             config_picks.get(sku.tray_config, 0) + sku.weekly_picks
         )
 
-    # Sort configs by total picks descending (highest gets first positions)
-    sorted_configs = sorted(
-        config_trays_alloc.keys(),
-        key=lambda c: config_picks.get(c, 0),
-        reverse=True,
-    )
+    # Group configs by their tray height
+    height_groups: dict[float, list[int]] = {}
+    for config_num in config_trays_needed:
+        h = tray_configs[config_num]["height"]
+        height_groups.setdefault(h, []).append(config_num)
 
-    # Assign physical positions sequentially per tower
+    # Assign physical tray positions per tower
     # Tray numbers encode the tower: Tower 1 = 1001+, Tower 2 = 2001+, etc.
     tray_map = {}
     for tower in range(1, num_towers + 1):
-        pos = 1
-        for config_num in sorted_configs:
-            trays_for_config = config_trays_alloc[config_num]
-            for ct in range(1, trays_for_config + 1):
-                if pos <= trays_per_tower:
+        pos = 1  # running position counter within this tower
+
+        # Process each height group (sorted by height for deterministic ordering)
+        for height in sorted(height_groups.keys()):
+            configs_at_height = height_groups[height]
+            pool_size = tray_pools.get(height, 0)
+
+            # Determine allocation for this height group
+            needed = {cn: config_trays_needed[cn] for cn in configs_at_height}
+            total_needed = sum(needed.values())
+
+            if pool_size == 0:
+                alloc = {cn: 0 for cn in configs_at_height}
+            elif total_needed > pool_size:
+                # Scale proportionally, at least 1 tray each
+                alloc = {}
+                for cn, n in needed.items():
+                    alloc[cn] = max(1, round(n * pool_size / total_needed))
+                while sum(alloc.values()) > pool_size:
+                    biggest = max(alloc, key=alloc.get)
+                    alloc[biggest] -= 1
+            else:
+                alloc = dict(needed)
+
+            # Sort by picks descending (highest gets first positions)
+            sorted_configs = sorted(
+                alloc.keys(),
+                key=lambda c: config_picks.get(c, 0),
+                reverse=True,
+            )
+
+            for config_num in sorted_configs:
+                trays_for_config = alloc[config_num]
+                for ct in range(1, trays_for_config + 1):
                     tray_map[(tower, config_num, ct)] = tower * 1000 + pos
                     pos += 1
 
@@ -621,14 +660,50 @@ def build_summary(rows: list[dict], warnings: list[dict],
     total_placed = len(rows)
 
     # Per-tower stats
+    slot_spacing = cfg["slot_spacing"]
+    slots_per_tower = cfg["slots_per_tower"]
+    reserved_slots = cfg["reserved_slots"]
+    usable_slots = slots_per_tower - reserved_slots
     towers = []
     for tower_num in range(1, num_towers + 1):
         tower_rows = [r for r in rows if r["Tower"] == tower_num]
-        trays_used = len(set(r["Tray"] for r in tower_rows))
+        # Unique trays and their heights
+        tray_heights: dict[int, float] = {}
+        for r in tower_rows:
+            if r["Tray"] not in tray_heights:
+                # Parse height from Tray_Config string (e.g. "16-cell 2\"")
+                parts = r["Tray_Config"].rstrip('"').rsplit(" ", 1)
+                tray_heights[r["Tray"]] = float(parts[-1])
+        trays_used = len(tray_heights)
+        total_height = sum(tray_heights.values())
+        slots_used = int(total_height / slot_spacing) if slot_spacing > 0 else 0
+
+        # Tray inventory utilization by height
+        trays_by_height: dict[str, set] = {}
+        for r in tower_rows:
+            parts = r["Tray_Config"].rstrip('"').rsplit(" ", 1)
+            h_str = parts[-1]
+            trays_by_height.setdefault(h_str, set()).add(r["Tray"])
+        tray_inventory = []
+        for h_str, pool_key in [("2", "trays_2in"), ("4", "trays_4in"),
+                                 ("6", "trays_6in"), ("8", "trays_8in")]:
+            available = cfg.get(pool_key, 0)
+            used = len(trays_by_height.get(h_str, set()))
+            if available > 0 or used > 0:
+                tray_inventory.append({
+                    "height": h_str, "used": used, "available": available,
+                })
+
         towers.append({
             "tower": tower_num,
             "trays_used": trays_used,
             "items": len(tower_rows),
+            "total_height": round(total_height, 1),
+            "slots_used": slots_used,
+            "slots_available": usable_slots,
+            "slots_total": slots_per_tower,
+            "reserved_slots": reserved_slots,
+            "tray_inventory": tray_inventory,
             "golden_items": sum(
                 1 for r in tower_rows if r["Tray_Zone"] == "Golden"
             ),
@@ -760,6 +835,9 @@ def print_summary(rows: list[dict], warnings: list[dict],
         print(f"    Silver:         {t['silver_items']} items")
         print(f"    Bronze:         {t['bronze_items']} items")
         print(f"    Slow Movers:    {t['slow_mover_items']} items")
+        print(f"    Stacked height: {t['total_height']}\"")
+        print(f"    Slots used:     {t['slots_used']} / {t['slots_available']}"
+              f" ({t['reserved_slots']} reserved)")
         print(f"    Total weight:   {t['weight']} lbs")
         print()
 
