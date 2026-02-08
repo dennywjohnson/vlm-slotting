@@ -672,6 +672,7 @@ def build_summary(rows: list[dict], warnings: list[dict],
     total_picks = sum(r["Weekly_Picks"] for r in rows)
 
     # Config usage
+    tray_configs = get_tray_configs(cfg)
     config_usage = {}
     for r in rows:
         key = r["Tray_Config"]
@@ -680,12 +681,25 @@ def build_summary(rows: list[dict], warnings: list[dict],
                                  "cell_vol": r["Cell_Vol_in3"]}
         config_usage[key]["trays"].add((r["Tower"], r["Tray"]))
         config_usage[key]["items"] += 1
-    # Convert sets to counts
+    # Convert sets to counts; add cell dimensions
     for key in config_usage:
+        # Find the matching tray config by parsing the key (e.g. "16-cell 2\"")
+        tc_match = None
+        for tc_num, tc in tray_configs.items():
+            label = f"{tc['cells']}-cell {tc['height']:.0f}\""
+            if label == key:
+                tc_match = tc
+                break
+        cell_w = round(compute_cell_width(
+            cfg["tray_width"], tc_match["cells"], cfg["divider_width"]
+        ), 1) if tc_match else 0
+        cell_d = cfg["tray_depth"]
+        cell_h = tc_match["height"] if tc_match else 0
         config_usage[key] = {
             "trays": len(config_usage[key]["trays"]),
             "items": config_usage[key]["items"],
             "cell_vol": config_usage[key]["cell_vol"],
+            "cell_dims": f"{cell_w}\"W x {cell_d}\"D x {cell_h:.0f}\"H",
         }
 
     # Tray weight stats
